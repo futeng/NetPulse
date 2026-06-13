@@ -9,7 +9,10 @@ struct NetPulseApp: App {
             MenuBarView()
                 .environmentObject(model)
         } label: {
-            Image(systemName: model.menuSymbol)
+            MascotMenuBarIcon(
+                status: model.overallStatus,
+                isRunning: model.isRunning
+            )
         }
         .menuBarExtraStyle(.window)
 

@@ -67,16 +67,6 @@ final class AppModel: ObservableObject {
         return currentRun?.status ?? .idle
     }
 
-    var menuSymbol: String {
-        if isRunning { return "waveform.path.ecg" }
-        return switch overallStatus {
-        case .idle: "network"
-        case .healthy: "checkmark.circle.fill"
-        case .degraded: "exclamationmark.triangle.fill"
-        case .down: "xmark.octagon.fill"
-        }
-    }
-
     func start() {
         guard !hasStarted else { return }
         hasStarted = true

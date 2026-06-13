@@ -8,8 +8,10 @@
     <string>NetPulse</string>
     <key>CFBundleExecutable</key>
     <string>NetPulse</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
-    <string>com.local.netpulse</string>
+    <string>com.ftpai.futeng.NetPulse</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>

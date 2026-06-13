@@ -16,3 +16,6 @@ jobs:
 
       - name: Run tests
         run: swift test --package-path NetPulse
+
+      - name: Build Universal app
+        run: ./scripts/build_netpulse.sh universal

@@ -8,7 +8,8 @@ NetPulse uses a small SwiftUI application layer around a concurrent network prob
 
 | Component | Responsibility |
 |---|---|
-| `NetPulseApp.swift` | Menu bar and single-instance dashboard scenes |
+| `NetPulseApp.swift` | Menu bar mascot and single-instance dashboard scenes |
+| `MascotMenuBarIcon.swift` | Low-frequency animated network otter status icon |
 | `AppModel.swift` | Application state, scheduling, target management and notifications |
 | `ProbeEngine.swift` | Concurrent DNS/TCP/TLS/HTTP probes and timing collection |
 | `Models.swift` | Targets, samples, runs, health and performance classification |
@@ -47,3 +48,10 @@ New `ProbeTarget` fields must provide decoding defaults. This keeps older config
 - Runtime configuration and history remain in the user's Application Support directory.
 - The repository contains no proxy subscription, messaging integration or account credential.
 - Fake-IP addresses in `198.18.0.0/15` are display-only routing evidence and are not public client addresses.
+
+## Application Identity
+
+- Bundle ID: `com.ftpai.futeng.NetPulse`
+- Deployment target: macOS 13
+- Release architectures: Apple Silicon (`arm64`) and Intel (`x86_64`)
+- Current public releases: ad-hoc signed and not notarized
