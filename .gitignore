@@ -1,0 +1,7 @@
+.DS_Store
+dist/
+NetPulse/.build/
+NetPulse/.swiftpm/
+*.xcuserstate
+*.log
+*.tmp

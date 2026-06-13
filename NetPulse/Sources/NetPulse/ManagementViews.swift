@@ -1,0 +1,396 @@
+import SwiftUI
+
+private enum ConfigurationSection: String, CaseIterable, Identifiable {
+    case targets = "检测目标"
+    case runtime = "运行设置"
+
+    var id: String { rawValue }
+}
+
+struct ConfigurationPanelView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedSection = ConfigurationSection.targets
+    @State private var showingAddTarget = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PanelHeader(title: "配置", symbol: "slider.horizontal.3") {
+                dismiss()
+            }
+
+            HStack {
+                Picker("配置区域", selection: $selectedSection) {
+                    ForEach(ConfigurationSection.allCases) { section in
+                        Text(section.rawValue).tag(section)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 260)
+
+                Spacer()
+
+                if selectedSection == .targets {
+                    Button {
+                        showingAddTarget = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .help("添加检测目标")
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+
+            Divider()
+
+            switch selectedSection {
+            case .targets:
+                TargetManagerView()
+            case .runtime:
+                RuntimeSettingsView()
+            }
+        }
+        .frame(width: 720, height: 600)
+        .sheet(isPresented: $showingAddTarget) {
+            AddTargetView()
+        }
+    }
+}
+
+struct TargetManagerView: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("\(model.configuration.targets.count) 个检测目标")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("恢复内置目标") {
+                    model.restoreBuiltIns()
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+
+            Divider()
+
+            List {
+                ForEach(model.orderedTargets) { target in
+                    HStack(spacing: 12) {
+                        Image(systemName: target.category.symbol)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 22)
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack {
+                                Text(target.name)
+                                Text(target.service)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(target.urlString)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Button {
+                            model.setTarget(target, pinned: !target.isPinned)
+                        } label: {
+                            Image(systemName: target.isPinned ? "pin.fill" : "pin")
+                        }
+                        .buttonStyle(.borderless)
+                        .help(target.isPinned ? "取消置顶" : "置顶目标")
+                        Toggle(
+                            "",
+                            isOn: Binding(
+                                get: { target.enabled },
+                                set: { model.setTarget(target, enabled: $0) }
+                            )
+                        )
+                        .labelsHidden()
+                        if !target.isBuiltIn {
+                            Button {
+                                model.deleteTarget(target)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("删除目标")
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .listStyle(.inset)
+        }
+    }
+}
+
+struct RuntimeSettingsView: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        Form {
+            Section("检测") {
+                Toggle(
+                    "启用周期检测",
+                    isOn: Binding(
+                        get: { model.configuration.scheduleEnabled },
+                        set: { model.setScheduleEnabled($0) }
+                    )
+                )
+                Stepper(
+                    "检测间隔 \(model.configuration.intervalMinutes) 分钟",
+                    value: Binding(
+                        get: { model.configuration.intervalMinutes },
+                        set: { model.setScheduleInterval($0) }
+                    ),
+                    in: 1...1_440
+                )
+                .disabled(!model.configuration.scheduleEnabled)
+                Stepper(
+                    "每项目采样 \(model.configuration.sampleCount) 次",
+                    value: $model.configuration.sampleCount,
+                    in: 1...8
+                )
+                Stepper(
+                    "单次超时 \(Int(model.configuration.timeoutSeconds)) 秒",
+                    value: $model.configuration.timeoutSeconds,
+                    in: 2...15,
+                    step: 1
+                )
+            }
+
+            Section("提醒") {
+                Toggle("异常时发送 macOS 通知", isOn: $model.configuration.notificationsEnabled)
+                Toggle("恢复正常时通知", isOn: $model.configuration.notifyRecovery)
+                    .disabled(!model.configuration.notificationsEnabled)
+                Picker("重复提醒间隔", selection: $model.configuration.notificationCooldownMinutes) {
+                    ForEach([5, 15, 30, 60, 120], id: \.self) {
+                        Text("\($0) 分钟").tag($0)
+                    }
+                }
+                Button {
+                    model.testNotification()
+                } label: {
+                    Label("测试通知", systemImage: "bell")
+                }
+                Text(model.notificationPermission)
+                    .font(.caption)
+                    .foregroundStyle(
+                        model.notificationPermission.contains("关闭") ? .red : .secondary
+                    )
+                if model.notificationPermission.contains("关闭") {
+                    Button {
+                        model.openNotificationSettings()
+                    } label: {
+                        Label("打开系统通知设置", systemImage: "gear")
+                    }
+                }
+            }
+
+            Section("启动") {
+                Toggle(
+                    "登录 macOS 后自动运行",
+                    isOn: Binding(
+                        get: { model.configuration.launchAtLogin },
+                        set: { model.setLaunchAtLogin($0) }
+                    )
+                )
+                if let error = model.launchAtLoginError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .task {
+            await model.refreshNotificationPermission()
+        }
+    }
+}
+
+struct HistoryPanelView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PanelHeader(title: "检测历史", symbol: "clock.arrow.circlepath") {
+                dismiss()
+            }
+            Divider()
+            HistoryView()
+        }
+        .frame(width: 680, height: 560)
+    }
+}
+
+struct HistoryView: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        if model.history.isEmpty {
+            EmptyStateView(
+                title: "暂无历史",
+                symbol: "clock",
+                detail: "检测完成后会保留最近 50 次结果。"
+            )
+        } else {
+            List(model.history) { run in
+                HStack(spacing: 14) {
+                    StatusDot(status: run.status)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(run.finishedAt.formatted(date: .abbreviated, time: .standard))
+                            .font(.body.weight(.medium))
+                        Text("健康 \(run.healthyCount)/\(run.results.count) · 可用 \(run.availableCount)/\(run.results.count)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text(formatMilliseconds(run.durationMs))
+                        .font(.callout.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 5)
+            }
+            .listStyle(.inset)
+        }
+    }
+}
+
+struct AddTargetView: View {
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var service = ""
+    @State private var name = ""
+    @State private var category = ProbeCategory.custom
+    @State private var address = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("添加检测目标")
+                .font(.title2.weight(.semibold))
+
+            Form {
+                Section {
+                    TextField(
+                        "服务分组",
+                        text: $service,
+                        prompt: Text("例如 Google、X、公司内网")
+                    )
+                    TextField(
+                        "目标名称",
+                        text: $name,
+                        prompt: Text("例如 用户图片 CDN、登录接口")
+                    )
+                    Picker("内容类型（图标）", selection: $category) {
+                        ForEach(ProbeCategory.allCases) { category in
+                            Label(category.rawValue, systemImage: category.symbol)
+                                .tag(category)
+                        }
+                    }
+                } header: {
+                    Text("列表呈现")
+                } footer: {
+                    Text("服务分组决定主面板顶部的筛选标签；目标名称显示为列表主标题；内容类型用于列表图标和用途标识。")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                Section("访问地址") {
+                    TextField(
+                        "域名或 URL",
+                        text: $address,
+                        prompt: Text("example.com 或 https://example.com/path")
+                    )
+                }
+
+                Section("列表预览") {
+                    HStack(spacing: 12) {
+                        Image(systemName: category.symbol)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 22)
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 8) {
+                                Text(previewName)
+                                    .font(.body.weight(.medium))
+                                Text(previewService)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(previewAddress)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+            .formStyle(.grouped)
+
+            HStack {
+                Spacer()
+                Button("取消") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("添加") {
+                    model.addTarget(
+                        service: service,
+                        name: name,
+                        category: category,
+                        input: address
+                    )
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .disabled(!canAdd)
+            }
+        }
+        .padding(24)
+        .frame(width: 560, height: 560)
+    }
+
+    private var canAdd: Bool {
+        !service.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var previewService: String {
+        let value = service.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? "服务分组" : value
+    }
+
+    private var previewName: String {
+        let value = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? "目标名称" : value
+    }
+
+    private var previewAddress: String {
+        let value = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? "example.com" : value
+    }
+}
+
+private struct PanelHeader: View {
+    let title: String
+    let symbol: String
+    let close: () -> Void
+
+    var body: some View {
+        HStack {
+            Label(title, systemImage: symbol)
+                .font(.title2.weight(.semibold))
+            Spacer()
+            Button(action: close) {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.borderless)
+            .help("关闭")
+        }
+        .padding(20)
+    }
+}
