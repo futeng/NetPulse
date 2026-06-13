@@ -8,7 +8,7 @@ NetPulse uses a small SwiftUI application layer around a concurrent network prob
 
 | Component | Responsibility |
 |---|---|
-| `NetPulseApp.swift` | Menu bar and dashboard scenes |
+| `NetPulseApp.swift` | Menu bar and single-instance dashboard scenes |
 | `AppModel.swift` | Application state, scheduling, target management and notifications |
 | `ProbeEngine.swift` | Concurrent DNS/TCP/TLS/HTTP probes and timing collection |
 | `Models.swift` | Targets, samples, runs, health and performance classification |

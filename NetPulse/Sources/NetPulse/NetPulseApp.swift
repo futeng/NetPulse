@@ -13,7 +13,7 @@ struct NetPulseApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        WindowGroup("NetPulse", id: "dashboard") {
+        Window("NetPulse", id: "dashboard") {
             DashboardView()
                 .environmentObject(model)
         }
