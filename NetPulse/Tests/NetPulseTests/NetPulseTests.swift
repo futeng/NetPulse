@@ -39,6 +39,41 @@ final class NetPulseTests: XCTestCase {
         XCTAssertEqual(sorted.map(\.target.name), ["Pinned", "First", "Third"])
     }
 
+    func testEditingTargetPreservesDetectionRules() {
+        let original = ProbeTarget(
+            service: "X",
+            name: "X 视频",
+            category: .video,
+            urlString: "https://video.twimg.com/original.mp4",
+            acceptedStatusCodes: [200, 206],
+            expectedContentPrefix: "video/mp4",
+            minimumBytes: 4_096,
+            rangeBytes: 65_536,
+            isBuiltIn: true
+        )
+
+        let edited = original.updatingEditableFields(
+            service: "媒体",
+            name: "重点视频",
+            category: .video,
+            urlString: "https://video.twimg.com/updated.mp4",
+            enabled: false,
+            isPinned: true
+        )
+
+        XCTAssertEqual(edited.id, original.id)
+        XCTAssertEqual(edited.service, "媒体")
+        XCTAssertEqual(edited.name, "重点视频")
+        XCTAssertEqual(edited.urlString, "https://video.twimg.com/updated.mp4")
+        XCTAssertFalse(edited.enabled)
+        XCTAssertTrue(edited.isPinned)
+        XCTAssertTrue(edited.isBuiltIn)
+        XCTAssertEqual(edited.acceptedStatusCodes, [200, 206])
+        XCTAssertEqual(edited.expectedContentPrefix, "video/mp4")
+        XCTAssertEqual(edited.minimumBytes, 4_096)
+        XCTAssertEqual(edited.rangeBytes, 65_536)
+    }
+
     func testPercentile() {
         XCTAssertEqual(percentile([100, 200, 300], 0.5), 200)
         XCTAssertEqual(percentile([100, 200, 300], 0.95), 300)

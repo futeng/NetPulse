@@ -142,6 +142,24 @@ struct ProbeTarget: Identifiable, Codable, Hashable {
         isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
     }
 
+    func updatingEditableFields(
+        service: String,
+        name: String,
+        category: ProbeCategory,
+        urlString: String,
+        enabled: Bool,
+        isPinned: Bool
+    ) -> ProbeTarget {
+        var updated = self
+        updated.service = service
+        updated.name = name
+        updated.category = category
+        updated.urlString = urlString
+        updated.enabled = enabled
+        updated.isPinned = isPinned
+        return updated
+    }
+
     static let builtIns: [ProbeTarget] = [
         ProbeTarget(
             service: "Google",

@@ -53,13 +53,14 @@ struct ConfigurationPanelView: View {
         }
         .frame(width: 720, height: 600)
         .sheet(isPresented: $showingAddTarget) {
-            AddTargetView()
+            TargetEditorView()
         }
     }
 }
 
 struct TargetManagerView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var editingTarget: ProbeTarget?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -80,22 +81,41 @@ struct TargetManagerView: View {
             List {
                 ForEach(model.orderedTargets) { target in
                     HStack(spacing: 12) {
-                        Image(systemName: target.category.symbol)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 22)
-                        VStack(alignment: .leading, spacing: 3) {
-                            HStack {
-                                Text(target.name)
-                                Text(target.service)
-                                    .font(.caption)
+                        Button {
+                            editingTarget = target
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: target.category.symbol)
                                     .foregroundStyle(.secondary)
+                                    .frame(width: 22)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    HStack {
+                                        Text(target.name)
+                                        Text(target.service)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Text(target.urlString)
+                                        .font(.caption.monospaced())
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                                Spacer(minLength: 8)
                             }
-                            Text(target.urlString)
-                                .font(.caption.monospaced())
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                            .contentShape(Rectangle())
                         }
-                        Spacer()
+                        .buttonStyle(.plain)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .help("编辑 \(target.name)")
+
+                        Button {
+                            editingTarget = target
+                        } label: {
+                            Image(systemName: "pencil")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("编辑目标")
+
                         Button {
                             model.setTarget(target, pinned: !target.isPinned)
                         } label: {
@@ -103,6 +123,7 @@ struct TargetManagerView: View {
                         }
                         .buttonStyle(.borderless)
                         .help(target.isPinned ? "取消置顶" : "置顶目标")
+
                         Toggle(
                             "",
                             isOn: Binding(
@@ -111,7 +132,14 @@ struct TargetManagerView: View {
                             )
                         )
                         .labelsHidden()
-                        if !target.isBuiltIn {
+                        .help(target.enabled ? "停用目标" : "启用目标")
+
+                        if target.isBuiltIn {
+                            Image(systemName: "shippingbox")
+                                .foregroundStyle(.secondary)
+                                .frame(width: 18)
+                                .help("内置目标可编辑，可通过“恢复内置目标”还原")
+                        } else {
                             Button {
                                 model.deleteTarget(target)
                             } label: {
@@ -125,6 +153,9 @@ struct TargetManagerView: View {
                 }
             }
             .listStyle(.inset)
+        }
+        .sheet(item: $editingTarget) { target in
+            TargetEditorView(target: target)
         }
     }
 }
@@ -262,18 +293,45 @@ struct HistoryView: View {
     }
 }
 
-struct AddTargetView: View {
+struct TargetEditorView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
-    @State private var service = ""
-    @State private var name = ""
-    @State private var category = ProbeCategory.custom
-    @State private var address = ""
+    private let target: ProbeTarget?
+
+    @State private var service: String
+    @State private var name: String
+    @State private var category: ProbeCategory
+    @State private var address: String
+    @State private var enabled: Bool
+    @State private var pinned: Bool
+
+    init(target: ProbeTarget? = nil) {
+        self.target = target
+        _service = State(initialValue: target?.service ?? "")
+        _name = State(initialValue: target?.name ?? "")
+        _category = State(initialValue: target?.category ?? .custom)
+        _address = State(initialValue: target?.urlString ?? "")
+        _enabled = State(initialValue: target?.enabled ?? true)
+        _pinned = State(initialValue: target?.isPinned ?? false)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("添加检测目标")
+            HStack {
+                Label(
+                    target == nil ? "添加检测目标" : "编辑检测目标",
+                    systemImage: target == nil ? "plus.circle" : "pencil"
+                )
                 .font(.title2.weight(.semibold))
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.borderless)
+                .help("关闭")
+            }
 
             Form {
                 Section {
@@ -308,6 +366,28 @@ struct AddTargetView: View {
                     )
                 }
 
+                Section("显示与运行") {
+                    Toggle("启用检测", isOn: $enabled)
+                    Toggle("在“全部”列表中置顶", isOn: $pinned)
+                }
+
+                if target?.isBuiltIn == true {
+                    Section {
+                        Label(
+                            "这是内置目标。修改服务、名称、类型或地址时，原有的状态码、内容类型和数据量判定规则仍会保留。",
+                            systemImage: "checkmark.shield"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                        Text("需要撤销修改时，可在配置列表中选择“恢复内置目标”。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } header: {
+                        Text("内置检测规则")
+                    }
+                }
+
                 Section("列表预览") {
                     HStack(spacing: 12) {
                         Image(systemName: category.symbol)
@@ -332,31 +412,56 @@ struct AddTargetView: View {
             .formStyle(.grouped)
 
             HStack {
+                Text(target == nil ? "添加后在下一次检测时生效" : "保存后在下一次检测时生效")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Button("取消") { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button("添加") {
-                    model.addTarget(
-                        service: service,
-                        name: name,
-                        category: category,
-                        input: address
-                    )
+                Button(actionTitle) {
+                    save()
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
-                .disabled(!canAdd)
+                .disabled(!canSave)
             }
         }
         .padding(24)
-        .frame(width: 560, height: 560)
+        .frame(width: 580, height: target?.isBuiltIn == true ? 650 : 590)
     }
 
-    private var canAdd: Bool {
+    private var actionTitle: String {
+        target == nil ? "添加" : "保存"
+    }
+
+    private var canSave: Bool {
         !service.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func save() {
+        if let target {
+            model.updateTarget(
+                target,
+                service: service,
+                name: name,
+                category: category,
+                input: address,
+                enabled: enabled,
+                pinned: pinned
+            )
+        } else {
+            model.addTarget(
+                service: service,
+                name: name,
+                category: category,
+                input: address,
+                enabled: enabled,
+                pinned: pinned
+            )
+        }
     }
 
     private var previewService: String {

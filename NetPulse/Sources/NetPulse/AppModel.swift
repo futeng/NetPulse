@@ -103,22 +103,51 @@ final class AppModel: ObservableObject {
         service: String,
         name: String,
         category: ProbeCategory,
-        input: String
+        input: String,
+        enabled: Bool = true,
+        pinned: Bool = false
     ) {
         let normalized = normalizeURL(input)
         configuration.targets.append(
             ProbeTarget(
-                service: service.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? "自定义"
-                    : service.trimmingCharacters(in: .whitespacesAndNewlines),
-                name: name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? normalized
-                    : name.trimmingCharacters(in: .whitespacesAndNewlines),
+                service: normalizedService(service),
+                name: normalizedName(name, fallback: normalized),
                 category: category,
                 urlString: normalized,
-                acceptAnyStatusBelow500: true
+                acceptAnyStatusBelow500: true,
+                enabled: enabled,
+                isPinned: pinned
             )
         )
+    }
+
+    func updateTarget(
+        _ target: ProbeTarget,
+        service: String,
+        name: String,
+        category: ProbeCategory,
+        input: String,
+        enabled: Bool,
+        pinned: Bool
+    ) {
+        guard let index = configuration.targets.firstIndex(where: { $0.id == target.id }) else {
+            return
+        }
+
+        let normalized = normalizeURL(input)
+        let updated = configuration.targets[index].updatingEditableFields(
+            service: normalizedService(service),
+            name: normalizedName(name, fallback: normalized),
+            category: category,
+            urlString: normalized,
+            enabled: enabled,
+            isPinned: pinned
+        )
+        configuration.targets[index] = updated
+
+        if selectedService != "全部", !services.contains(selectedService) {
+            selectedService = "全部"
+        }
     }
 
     func deleteTarget(_ target: ProbeTarget) {
@@ -208,6 +237,16 @@ final class AppModel: ObservableObject {
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.contains("://") { return trimmed }
         return "https://\(trimmed)"
+    }
+
+    private func normalizedService(_ service: String) -> String {
+        let trimmed = service.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "自定义" : trimmed
+    }
+
+    private func normalizedName(_ name: String, fallback: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? fallback : trimmed
     }
 
     private func reschedule() {
