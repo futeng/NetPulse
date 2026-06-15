@@ -8,8 +8,8 @@ NetPulse uses a small SwiftUI application layer around a concurrent network prob
 
 | Component | Responsibility |
 |---|---|
-| `NetPulseApp.swift` | Menu bar mascot and single-instance dashboard scenes |
-| `MascotMenuBarIcon.swift` | Low-frequency animated network otter status icon |
+| `NetPulseApp.swift` | Menu bar status item and single-instance dashboard scenes |
+| `NetworkPulseMenuBarIcon.swift` | Compact monochrome network health icon for the menu bar |
 | `AppModel.swift` | Application state, scheduling, target management and notifications |
 | `ProbeEngine.swift` | Concurrent DNS/TCP/TLS/HTTP probes and timing collection |
 | `Models.swift` | Targets, samples, runs, health and performance classification |

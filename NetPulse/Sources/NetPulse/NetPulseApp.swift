@@ -9,7 +9,7 @@ struct NetPulseApp: App {
             MenuBarView()
                 .environmentObject(model)
         } label: {
-            MascotMenuBarIcon(
+            NetworkPulseMenuBarIcon(
                 status: model.overallStatus,
                 isRunning: model.isRunning
             )

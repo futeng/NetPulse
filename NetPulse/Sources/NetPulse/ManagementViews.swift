@@ -8,9 +8,11 @@ private enum ConfigurationSection: String, CaseIterable, Identifiable {
 }
 
 struct ConfigurationPanelView: View {
+    @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var selectedSection = ConfigurationSection.targets
     @State private var showingAddTarget = false
+    @State private var showingRestoreConfirmation = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,6 +33,20 @@ struct ConfigurationPanelView: View {
                 Spacer()
 
                 if selectedSection == .targets {
+                    Menu {
+                        Button {
+                            showingRestoreConfirmation = true
+                        } label: {
+                            Label("恢复所有内置目标", systemImage: "arrow.counterclockwise")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .foregroundStyle(.secondary)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("更多目标操作")
+
                     Button {
                         showingAddTarget = true
                     } label: {
@@ -55,6 +71,17 @@ struct ConfigurationPanelView: View {
         .sheet(isPresented: $showingAddTarget) {
             TargetEditorView()
         }
+        .confirmationDialog(
+            "恢复所有内置目标？",
+            isPresented: $showingRestoreConfirmation
+        ) {
+            Button("恢复内置目标") {
+                model.restoreBuiltIns()
+            }
+            Button("取消", role: .cancel) { }
+        } message: {
+            Text("内置目标的名称、类型、地址和启用状态将恢复默认。自定义目标不会受影响。")
+        }
     }
 }
 
@@ -69,9 +96,6 @@ struct TargetManagerView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button("恢复内置目标") {
-                    model.restoreBuiltIns()
-                }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -94,6 +118,16 @@ struct TargetManagerView: View {
                                         Text(target.service)
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
+                                        if target.isBuiltIn {
+                                            Text("内置")
+                                                .font(.caption2)
+                                                .foregroundStyle(.tertiary)
+                                        }
+                                        if !target.enabled {
+                                            Text("已停用")
+                                                .font(.caption2)
+                                                .foregroundStyle(.orange)
+                                        }
                                     }
                                     Text(target.urlString)
                                         .font(.caption.monospaced())
@@ -109,14 +143,6 @@ struct TargetManagerView: View {
                         .help("编辑 \(target.name)")
 
                         Button {
-                            editingTarget = target
-                        } label: {
-                            Image(systemName: "pencil")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("编辑目标")
-
-                        Button {
                             model.setTarget(target, pinned: !target.isPinned)
                         } label: {
                             Image(systemName: target.isPinned ? "pin.fill" : "pin")
@@ -124,32 +150,42 @@ struct TargetManagerView: View {
                         .buttonStyle(.borderless)
                         .help(target.isPinned ? "取消置顶" : "置顶目标")
 
-                        Toggle(
-                            "",
-                            isOn: Binding(
-                                get: { target.enabled },
-                                set: { model.setTarget(target, enabled: $0) }
-                            )
-                        )
-                        .labelsHidden()
-                        .help(target.enabled ? "停用目标" : "启用目标")
-
-                        if target.isBuiltIn {
-                            Image(systemName: "shippingbox")
-                                .foregroundStyle(.secondary)
-                                .frame(width: 18)
-                                .help("内置目标可编辑，可通过“恢复内置目标”还原")
-                        } else {
+                        Menu {
                             Button {
-                                model.deleteTarget(target)
+                                editingTarget = target
                             } label: {
-                                Image(systemName: "trash")
+                                Label("编辑", systemImage: "pencil")
                             }
-                            .buttonStyle(.borderless)
-                            .help("删除目标")
+
+                            Button {
+                                model.setTarget(target, enabled: !target.enabled)
+                            } label: {
+                                Label(
+                                    target.enabled ? "停用" : "启用",
+                                    systemImage: target.enabled
+                                        ? "pause.circle"
+                                        : "play.circle"
+                                )
+                            }
+
+                            if !target.isBuiltIn {
+                                Divider()
+                                Button(role: .destructive) {
+                                    model.deleteTarget(target)
+                                } label: {
+                                    Label("删除", systemImage: "trash")
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .foregroundStyle(.secondary)
                         }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
+                        .help("更多操作")
                     }
                     .padding(.vertical, 4)
+                    .opacity(target.enabled ? 1 : 0.58)
                 }
             }
             .listStyle(.inset)
@@ -380,7 +416,7 @@ struct TargetEditorView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                        Text("需要撤销修改时，可在配置列表中选择“恢复内置目标”。")
+                        Text("需要撤销修改时，可从配置页顶部的更多菜单恢复内置目标。")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } header: {
