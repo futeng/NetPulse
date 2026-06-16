@@ -26,7 +26,7 @@ final class AppModel: ObservableObject {
 
     init() {
         let loadedHistory = Persistence.loadHistory()
-        configuration = Persistence.loadConfiguration()
+        configuration = Persistence.loadConfiguration().addingMissingBuiltInTargets()
         history = loadedHistory
         currentRun = loadedHistory.first
         hasLoaded = true

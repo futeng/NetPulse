@@ -160,6 +160,13 @@ struct ProbeTarget: Identifiable, Codable, Hashable {
         return updated
     }
 
+    private static func builtInID(_ value: String) -> UUID {
+        guard let uuid = UUID(uuidString: value) else {
+            preconditionFailure("Invalid built-in target UUID: \(value)")
+        }
+        return uuid
+    }
+
     static let builtIns: [ProbeTarget] = [
         ProbeTarget(
             service: "Google",
@@ -235,6 +242,37 @@ struct ProbeTarget: Identifiable, Codable, Hashable {
             category: .text,
             urlString: "https://chatgpt.com/public-api/conversation_limit",
             acceptedStatusCodes: [200],
+            expectedContentPrefix: "application/json",
+            minimumBytes: 20,
+            isBuiltIn: true
+        ),
+        ProbeTarget(
+            id: builtInID("4F6F9B31-BB1C-44CE-8E6E-7B1651C4BB71"),
+            service: "Grok",
+            name: "Grok Web",
+            category: .text,
+            urlString: "https://grok.com/",
+            acceptedStatusCodes: [200],
+            expectedContentPrefix: "text/html",
+            minimumBytes: 1_024,
+            isBuiltIn: true
+        ),
+        ProbeTarget(
+            id: builtInID("69218403-D74A-4D0B-A96C-E2FC54CBA63C"),
+            service: "Grok",
+            name: "Grok Imagine 视频生成",
+            category: .video,
+            urlString: "https://api.x.ai/v1/videos/generations",
+            acceptedStatusCodes: [405],
+            isBuiltIn: true
+        ),
+        ProbeTarget(
+            id: builtInID("0E58BEB3-8AF5-4AF8-98E1-F28B55A1F174"),
+            service: "Grok",
+            name: "Grok API",
+            category: .api,
+            urlString: "https://api.x.ai/v1/models",
+            acceptedStatusCodes: [401],
             expectedContentPrefix: "application/json",
             minimumBytes: 20,
             isBuiltIn: true
@@ -409,6 +447,23 @@ struct AppConfiguration: Codable, Equatable {
         notificationCooldownMinutes: 30,
         launchAtLogin: false
     )
+
+    func addingMissingBuiltInTargets() -> AppConfiguration {
+        var updated = self
+        let existingIDs = Set(updated.targets.map(\.id))
+        let existingURLs = Set(updated.targets.map(\.urlString))
+        let existingNames = Set(updated.targets.map { "\($0.service)\u{1f}\($0.name)" })
+        let missingBuiltIns = ProbeTarget.builtIns.filter { target in
+            !existingIDs.contains(target.id)
+                && !existingURLs.contains(target.urlString)
+                && !existingNames.contains("\(target.service)\u{1f}\(target.name)")
+        }
+
+        if !missingBuiltIns.isEmpty {
+            updated.targets.append(contentsOf: missingBuiltIns)
+        }
+        return updated
+    }
 }
 
 func percentile(_ values: [Double], _ fraction: Double) -> Double? {

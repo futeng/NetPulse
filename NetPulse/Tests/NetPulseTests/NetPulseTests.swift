@@ -39,6 +39,42 @@ final class NetPulseTests: XCTestCase {
         XCTAssertEqual(sorted.map(\.target.name), ["Pinned", "First", "Third"])
     }
 
+    func testBuiltInsIncludeGrokTargets() {
+        let grokTargets = ProbeTarget.builtIns.filter { $0.service == "Grok" }
+
+        XCTAssertEqual(grokTargets.map(\.name), [
+            "Grok Web",
+            "Grok Imagine 视频生成",
+            "Grok API"
+        ])
+        XCTAssertEqual(grokTargets.map(\.urlString), [
+            "https://grok.com/",
+            "https://api.x.ai/v1/videos/generations",
+            "https://api.x.ai/v1/models"
+        ])
+        XCTAssertEqual(grokTargets.map(\.isBuiltIn), [true, true, true])
+    }
+
+    func testMissingBuiltInsAreAddedWithoutDuplicatingExistingTargets() {
+        let custom = ProbeTarget(
+            service: "Custom",
+            name: "Example",
+            category: .custom,
+            urlString: "https://example.com",
+            acceptAnyStatusBelow500: true
+        )
+        let configuration = AppConfiguration.default
+        var olderConfiguration = configuration
+        olderConfiguration.targets = ProbeTarget.builtIns.filter { $0.service != "Grok" } + [custom]
+
+        let migrated = olderConfiguration.addingMissingBuiltInTargets()
+        let migratedAgain = migrated.addingMissingBuiltInTargets()
+
+        XCTAssertEqual(migrated.targets.filter { $0.service == "Grok" }.count, 3)
+        XCTAssertEqual(migratedAgain.targets.filter { $0.service == "Grok" }.count, 3)
+        XCTAssertTrue(migrated.targets.contains(custom))
+    }
+
     func testEditingTargetPreservesDetectionRules() {
         let original = ProbeTarget(
             service: "X",
