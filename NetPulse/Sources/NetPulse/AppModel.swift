@@ -184,6 +184,18 @@ final class AppModel: ObservableObject {
         configuration.targets = builtIns + custom
     }
 
+    func importConfiguration(
+        _ export: NetPulseConfigurationExport,
+        mode: ConfigurationImportMode
+    ) {
+        switch mode {
+        case .mergeTargets:
+            configuration = configuration.mergingTargets(from: export)
+        case .replaceConfiguration:
+            configuration = configuration.replacingSharedConfiguration(with: export)
+        }
+    }
+
     func setScheduleInterval(_ minutes: Int) {
         var updated = configuration
         updated.scheduleEnabled = true

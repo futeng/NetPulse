@@ -13,6 +13,11 @@ struct ConfigurationPanelView: View {
     @State private var selectedSection = ConfigurationSection.targets
     @State private var showingAddTarget = false
     @State private var showingRestoreConfirmation = false
+    @State private var exportingConfiguration = false
+    @State private var importingConfiguration = false
+    @State private var importMode = ConfigurationImportMode.mergeTargets
+    @State private var pendingImport: PendingConfigurationImport?
+    @State private var importError: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,6 +39,30 @@ struct ConfigurationPanelView: View {
 
                 if selectedSection == .targets {
                     Menu {
+                        Button {
+                            exportingConfiguration = true
+                        } label: {
+                            Label("导出配置", systemImage: "square.and.arrow.up")
+                        }
+
+                        Divider()
+
+                        Button {
+                            importMode = .mergeTargets
+                            importingConfiguration = true
+                        } label: {
+                            Label("导入并合并目标", systemImage: "square.and.arrow.down")
+                        }
+
+                        Button {
+                            importMode = .replaceConfiguration
+                            importingConfiguration = true
+                        } label: {
+                            Label("导入并替换配置", systemImage: "arrow.triangle.2.circlepath")
+                        }
+
+                        Divider()
+
                         Button {
                             showingRestoreConfirmation = true
                         } label: {
@@ -71,6 +100,63 @@ struct ConfigurationPanelView: View {
         .sheet(isPresented: $showingAddTarget) {
             TargetEditorView()
         }
+        .fileExporter(
+            isPresented: $exportingConfiguration,
+            document: ConfigurationExportDocument(
+                export: NetPulseConfigurationExport(configuration: model.configuration)
+            ),
+            contentType: .json,
+            defaultFilename: "NetPulse-Config"
+        ) { result in
+            if case .failure(let error) = result {
+                importError = "导出失败：\(error.localizedDescription)"
+            }
+        }
+        .fileImporter(
+            isPresented: $importingConfiguration,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            handleImportResult(result)
+        }
+        .confirmationDialog(
+            "导入 NetPulse 配置？",
+            isPresented: Binding(
+                get: { pendingImport != nil },
+                set: { if !$0 { pendingImport = nil } }
+            )
+        ) {
+            if let pendingImport {
+                Button(pendingImport.mode.actionTitle) {
+                    model.importConfiguration(
+                        pendingImport.export,
+                        mode: pendingImport.mode
+                    )
+                    self.pendingImport = nil
+                }
+            }
+            Button("取消", role: .cancel) {
+                pendingImport = nil
+            }
+        } message: {
+            if let pendingImport {
+                Text(
+                    "\(pendingImport.export.targets.count) 个检测目标。"
+                        + pendingImport.mode.confirmationMessage
+                )
+            }
+        }
+        .alert(
+            "配置导入导出失败",
+            isPresented: Binding(
+                get: { importError != nil },
+                set: { if !$0 { importError = nil } }
+            )
+        ) {
+            Button("确定", role: .cancel) { importError = nil }
+        } message: {
+            Text(importError ?? "")
+        }
         .confirmationDialog(
             "恢复所有内置目标？",
             isPresented: $showingRestoreConfirmation
@@ -81,6 +167,29 @@ struct ConfigurationPanelView: View {
             Button("取消", role: .cancel) { }
         } message: {
             Text("内置目标的名称、类型、地址和启用状态将恢复默认。自定义目标不会受影响。")
+        }
+    }
+
+    private func handleImportResult(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            do {
+                let export = try NetPulseConfigurationExport.load(from: url)
+                guard export.appName == "NetPulse" else {
+                    importError = "这不是 NetPulse 配置文件。"
+                    return
+                }
+                guard export.schemaVersion <= NetPulseConfigurationExport.currentSchemaVersion else {
+                    importError = "配置文件版本较新，请先升级 NetPulse。"
+                    return
+                }
+                pendingImport = PendingConfigurationImport(export: export, mode: importMode)
+            } catch {
+                importError = "导入失败：\(error.localizedDescription)"
+            }
+        case .failure(let error):
+            importError = "导入失败：\(error.localizedDescription)"
         }
     }
 }

@@ -75,6 +75,68 @@ final class NetPulseTests: XCTestCase {
         XCTAssertTrue(migrated.targets.contains(custom))
     }
 
+    func testConfigurationExportRoundTrip() throws {
+        let export = NetPulseConfigurationExport(
+            configuration: .default,
+            exportedAt: Date(timeIntervalSince1970: 1_800_000_000)
+        )
+
+        let data = try NetPulseConfigurationExport.encoder.encode(export)
+        let decoded = try NetPulseConfigurationExport.decoder.decode(
+            NetPulseConfigurationExport.self,
+            from: data
+        )
+
+        XCTAssertEqual(decoded.schemaVersion, 1)
+        XCTAssertEqual(decoded.appName, "NetPulse")
+        XCTAssertEqual(decoded.targets.count, AppConfiguration.default.targets.count)
+        XCTAssertEqual(decoded.settings.sampleCount, AppConfiguration.default.sampleCount)
+    }
+
+    func testReplacingSharedConfigurationPreservesLocalLaunchSetting() {
+        var local = AppConfiguration.default
+        local.launchAtLogin = true
+        local.intervalMinutes = 30
+
+        var shared = AppConfiguration.default
+        shared.launchAtLogin = false
+        shared.intervalMinutes = 5
+        shared.targets = ProbeTarget.builtIns.filter { $0.service == "Grok" }
+        let export = NetPulseConfigurationExport(configuration: shared)
+
+        let replaced = local.replacingSharedConfiguration(with: export)
+
+        XCTAssertTrue(replaced.launchAtLogin)
+        XCTAssertEqual(replaced.intervalMinutes, 5)
+        XCTAssertEqual(replaced.targets.filter { $0.service == "Grok" }.count, 3)
+    }
+
+    func testMergingConfigurationAddsOnlyMissingTargets() {
+        let existing = ProbeTarget(
+            service: "Shared",
+            name: "Existing",
+            category: .api,
+            urlString: "https://example.com/existing",
+            acceptAnyStatusBelow500: true
+        )
+        let incoming = ProbeTarget(
+            service: "Shared",
+            name: "Incoming",
+            category: .api,
+            urlString: "https://example.com/incoming",
+            acceptAnyStatusBelow500: true
+        )
+        var local = AppConfiguration.default
+        local.targets.append(existing)
+        var shared = AppConfiguration.default
+        shared.targets = [existing, incoming]
+
+        let merged = local.mergingTargets(from: NetPulseConfigurationExport(configuration: shared))
+
+        XCTAssertEqual(merged.targets.filter { $0.urlString == existing.urlString }.count, 1)
+        XCTAssertEqual(merged.targets.filter { $0.urlString == incoming.urlString }.count, 1)
+    }
+
     func testEditingTargetPreservesDetectionRules() {
         let original = ProbeTarget(
             service: "X",
