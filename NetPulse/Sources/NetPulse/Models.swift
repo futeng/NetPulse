@@ -435,6 +435,72 @@ struct AppConfiguration: Codable, Equatable {
     var notifyRecovery: Bool
     var notificationCooldownMinutes: Int
     var launchAtLogin: Bool
+    var exitIPCheckEnabled: Bool
+    var ipinfoLiteToken: String
+
+    init(
+        targets: [ProbeTarget],
+        scheduleEnabled: Bool,
+        intervalMinutes: Int,
+        sampleCount: Int,
+        timeoutSeconds: Double,
+        notificationsEnabled: Bool,
+        notifyRecovery: Bool,
+        notificationCooldownMinutes: Int,
+        launchAtLogin: Bool,
+        exitIPCheckEnabled: Bool = false,
+        ipinfoLiteToken: String = ""
+    ) {
+        self.targets = targets
+        self.scheduleEnabled = scheduleEnabled
+        self.intervalMinutes = intervalMinutes
+        self.sampleCount = sampleCount
+        self.timeoutSeconds = timeoutSeconds
+        self.notificationsEnabled = notificationsEnabled
+        self.notifyRecovery = notifyRecovery
+        self.notificationCooldownMinutes = notificationCooldownMinutes
+        self.launchAtLogin = launchAtLogin
+        self.exitIPCheckEnabled = exitIPCheckEnabled
+        self.ipinfoLiteToken = ipinfoLiteToken
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case targets
+        case scheduleEnabled
+        case intervalMinutes
+        case sampleCount
+        case timeoutSeconds
+        case notificationsEnabled
+        case notifyRecovery
+        case notificationCooldownMinutes
+        case launchAtLogin
+        case exitIPCheckEnabled
+        case ipinfoLiteToken
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        targets = try container.decode([ProbeTarget].self, forKey: .targets)
+        scheduleEnabled = try container.decode(Bool.self, forKey: .scheduleEnabled)
+        intervalMinutes = try container.decode(Int.self, forKey: .intervalMinutes)
+        sampleCount = try container.decode(Int.self, forKey: .sampleCount)
+        timeoutSeconds = try container.decode(Double.self, forKey: .timeoutSeconds)
+        notificationsEnabled = try container.decode(Bool.self, forKey: .notificationsEnabled)
+        notifyRecovery = try container.decode(Bool.self, forKey: .notifyRecovery)
+        notificationCooldownMinutes = try container.decode(
+            Int.self,
+            forKey: .notificationCooldownMinutes
+        )
+        launchAtLogin = try container.decode(Bool.self, forKey: .launchAtLogin)
+        exitIPCheckEnabled = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .exitIPCheckEnabled
+        ) ?? false
+        ipinfoLiteToken = try container.decodeIfPresent(
+            String.self,
+            forKey: .ipinfoLiteToken
+        ) ?? ""
+    }
 
     static let `default` = AppConfiguration(
         targets: ProbeTarget.builtIns,
@@ -445,7 +511,9 @@ struct AppConfiguration: Codable, Equatable {
         notificationsEnabled: true,
         notifyRecovery: true,
         notificationCooldownMinutes: 30,
-        launchAtLogin: false
+        launchAtLogin: false,
+        exitIPCheckEnabled: false,
+        ipinfoLiteToken: ""
     )
 
     func addingMissingBuiltInTargets() -> AppConfiguration {

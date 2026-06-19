@@ -110,6 +110,7 @@ open netpulse://dashboard
 - 右上角周期菜单可选择快捷周期、自定义周期或关闭定时检测。
 - 列表工具栏最右侧可打开检测历史和配置。
 - 配置页顶部“更多”菜单支持导出 JSON 配置包，也支持导入并合并目标或导入并替换配置。
+- 运行设置支持配置 IPinfo Lite Token，在主面板展示当前系统出口 IP、国家和 ASN。
 
 添加检测目标时：
 
@@ -132,6 +133,8 @@ open netpulse://dashboard
 Grok 内置目标使用不消耗额度的可达性探测：Web 首页检查 `grok.com`，Imagine 视频生成检查 xAI 视频生成入口的可达状态，API 检查 xAI 模型列表入口的未授权响应。
 
 配置包会导出检测目标和可共享运行设置，不包含检测历史，也不会导出或覆盖本机的登录启动状态。
+
+出口 IP 当前只支持 IPinfo Lite。Lite 免费版需要 API Token；Token 只保存在本机 `config.json`，不会写入导出的配置包。
 
 ### 性能分级
 

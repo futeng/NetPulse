@@ -187,6 +187,13 @@ struct CurrentResultsView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
+                        if model.configuration.exitIPCheckEnabled
+                            || !model.configuration.ipinfoLiteToken.isEmpty {
+                            ExitIPSummaryCard(showingConfiguration: $showingConfiguration)
+                            Divider()
+                                .padding(.leading, 20)
+                        }
+
                         ForEach(model.displayedResults) { result in
                             ProbeResultRow(result: result)
                             Divider()
@@ -263,5 +270,132 @@ struct CurrentResultsView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+    }
+}
+
+private struct ExitIPSummaryCard: View {
+    @EnvironmentObject private var model: AppModel
+    @Binding var showingConfiguration: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            statusIcon
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text("出口 IP")
+                        .font(.body.weight(.semibold))
+                    Text("IPinfo Lite")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(detailText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            if let info = currentInfo {
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(info.ip)
+                        .font(.callout.monospacedDigit().weight(.medium))
+                    Text(metaText(info))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Button {
+                model.refreshExitIP()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.borderless)
+            .disabled(isChecking || !model.configuration.exitIPCheckEnabled)
+            .help("刷新出口 IP")
+
+            Button {
+                showingConfiguration = true
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+            }
+            .buttonStyle(.borderless)
+            .help("配置出口 IP")
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+        .background(cardBackground)
+    }
+
+    @ViewBuilder
+    private var statusIcon: some View {
+        switch model.exitIPState {
+        case .checking:
+            ProgressView()
+                .scaleEffect(0.7)
+                .frame(width: 18, height: 18)
+        case .success:
+            Image(systemName: "location.circle.fill")
+                .foregroundStyle(.green)
+                .frame(width: 18)
+        case .failure:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .frame(width: 18)
+        case .idle:
+            Image(systemName: "location.circle")
+                .foregroundStyle(.secondary)
+                .frame(width: 18)
+        }
+    }
+
+    private var detailText: String {
+        switch model.exitIPState {
+        case .idle:
+            return "未启用出口 IP 检测"
+        case .checking:
+            return "正在通过当前系统路由请求 IPinfo Lite"
+        case .success(let info):
+            let time = info.checkedAt.formatted(date: .omitted, time: .standard)
+            return "当前系统出口 · \(formatMilliseconds(info.durationMs)) · \(time)"
+        case .failure(let message):
+            return message
+        }
+    }
+
+    private var currentInfo: ExitIPInfo? {
+        if case .success(let info) = model.exitIPState {
+            return info
+        }
+        return nil
+    }
+
+    private var isChecking: Bool {
+        if case .checking = model.exitIPState { return true }
+        return false
+    }
+
+    private var cardBackground: Color {
+        switch model.exitIPState {
+        case .failure:
+            Color.orange.opacity(0.06)
+        default:
+            Color(nsColor: .controlBackgroundColor).opacity(0.35)
+        }
+    }
+
+    private func metaText(_ info: ExitIPInfo) -> String {
+        let location = info.locationText
+        let organization = info.organizationText
+        if !location.isEmpty && !organization.isEmpty {
+            return "\(location) · \(organization)"
+        }
+        if !location.isEmpty { return location }
+        if !organization.isEmpty { return organization }
+        return "出口信息"
     }
 }

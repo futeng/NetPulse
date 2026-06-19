@@ -26,6 +26,30 @@ final class NetPulseTests: XCTestCase {
         XCTAssertFalse(target.isPinned)
     }
 
+    func testLegacyConfigurationWithoutExitIPFieldsStillDecodes() throws {
+        let json = """
+        {
+          "targets": [],
+          "scheduleEnabled": true,
+          "intervalMinutes": 5,
+          "sampleCount": 3,
+          "timeoutSeconds": 5,
+          "notificationsEnabled": true,
+          "notifyRecovery": true,
+          "notificationCooldownMinutes": 30,
+          "launchAtLogin": false
+        }
+        """
+
+        let configuration = try JSONDecoder().decode(
+            AppConfiguration.self,
+            from: Data(json.utf8)
+        )
+
+        XCTAssertFalse(configuration.exitIPCheckEnabled)
+        XCTAssertEqual(configuration.ipinfoLiteToken, "")
+    }
+
     func testPinnedResultsAreMovedFirstWithoutReorderingOthers() {
         let first = makeEmptyResult(name: "First")
         let pinned = makeEmptyResult(name: "Pinned")
@@ -76,8 +100,11 @@ final class NetPulseTests: XCTestCase {
     }
 
     func testConfigurationExportRoundTrip() throws {
+        var configuration = AppConfiguration.default
+        configuration.exitIPCheckEnabled = true
+        configuration.ipinfoLiteToken = "secret-token"
         let export = NetPulseConfigurationExport(
-            configuration: .default,
+            configuration: configuration,
             exportedAt: Date(timeIntervalSince1970: 1_800_000_000)
         )
 
@@ -91,16 +118,21 @@ final class NetPulseTests: XCTestCase {
         XCTAssertEqual(decoded.appName, "NetPulse")
         XCTAssertEqual(decoded.targets.count, AppConfiguration.default.targets.count)
         XCTAssertEqual(decoded.settings.sampleCount, AppConfiguration.default.sampleCount)
+        XCTAssertFalse(String(data: data, encoding: .utf8)?.contains("secret-token") ?? true)
     }
 
     func testReplacingSharedConfigurationPreservesLocalLaunchSetting() {
         var local = AppConfiguration.default
         local.launchAtLogin = true
         local.intervalMinutes = 30
+        local.exitIPCheckEnabled = true
+        local.ipinfoLiteToken = "local-token"
 
         var shared = AppConfiguration.default
         shared.launchAtLogin = false
         shared.intervalMinutes = 5
+        shared.exitIPCheckEnabled = false
+        shared.ipinfoLiteToken = "shared-token"
         shared.targets = ProbeTarget.builtIns.filter { $0.service == "Grok" }
         let export = NetPulseConfigurationExport(configuration: shared)
 
@@ -108,6 +140,8 @@ final class NetPulseTests: XCTestCase {
 
         XCTAssertTrue(replaced.launchAtLogin)
         XCTAssertEqual(replaced.intervalMinutes, 5)
+        XCTAssertTrue(replaced.exitIPCheckEnabled)
+        XCTAssertEqual(replaced.ipinfoLiteToken, "local-token")
         XCTAssertEqual(replaced.targets.filter { $0.service == "Grok" }.count, 3)
     }
 

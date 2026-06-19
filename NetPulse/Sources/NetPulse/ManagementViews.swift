@@ -340,6 +340,44 @@ struct RuntimeSettingsView: View {
                 )
             }
 
+            Section("出口 IP") {
+                Toggle(
+                    "显示出口 IP",
+                    isOn: Binding(
+                        get: { model.configuration.exitIPCheckEnabled },
+                        set: { model.setExitIPCheckEnabled($0) }
+                    )
+                )
+
+                SecureField(
+                    "IPinfo Lite API Token",
+                    text: Binding(
+                        get: { model.configuration.ipinfoLiteToken },
+                        set: { model.setIPinfoLiteToken($0) }
+                    )
+                )
+                .textFieldStyle(.roundedBorder)
+
+                HStack {
+                    Text("当前仅支持 IPinfo Lite。Lite 免费版需要 Token，返回出口 IP、国家和 ASN；Token 只保存在本机，不会导出到配置包。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+
+                Button {
+                    model.refreshExitIP()
+                } label: {
+                    Label("刷新出口 IP", systemImage: "location.circle")
+                }
+                .disabled(
+                    !model.configuration.exitIPCheckEnabled
+                        || model.configuration.ipinfoLiteToken
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                            .isEmpty
+                )
+            }
+
             Section("提醒") {
                 Toggle("异常时发送 macOS 通知", isOn: $model.configuration.notificationsEnabled)
                 Toggle("恢复正常时通知", isOn: $model.configuration.notifyRecovery)

@@ -18,10 +18,12 @@ final class AppModel: ObservableObject {
     @Published var selectedService = "全部"
     @Published var launchAtLoginError: String?
     @Published var notificationPermission = "正在检查通知权限"
+    @Published var exitIPState: ExitIPState = .idle
 
     private var hasLoaded = false
     private var hasStarted = false
     private var scheduleTask: Task<Void, Never>?
+    private var exitIPTask: Task<Void, Never>?
     private let notificationManager = NotificationManager()
 
     init() {
@@ -77,6 +79,7 @@ final class AppModel: ObservableObject {
             }
         }
         reschedule()
+        refreshExitIP()
         runNow()
     }
 
@@ -96,6 +99,7 @@ final class AppModel: ObservableObject {
             Persistence.saveHistory(history)
             isRunning = false
             await notificationManager.process(run: run, configuration: configurationSnapshot)
+            refreshExitIP()
         }
     }
 
@@ -207,6 +211,50 @@ final class AppModel: ObservableObject {
         var updated = configuration
         updated.scheduleEnabled = enabled
         configuration = updated
+    }
+
+    func setExitIPCheckEnabled(_ enabled: Bool) {
+        var updated = configuration
+        updated.exitIPCheckEnabled = enabled
+        configuration = updated
+        if enabled {
+            refreshExitIP()
+        } else {
+            exitIPTask?.cancel()
+            exitIPState = .idle
+        }
+    }
+
+    func setIPinfoLiteToken(_ token: String) {
+        var updated = configuration
+        updated.ipinfoLiteToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        configuration = updated
+    }
+
+    func refreshExitIP() {
+        guard configuration.exitIPCheckEnabled else {
+            exitIPState = .idle
+            return
+        }
+
+        let token = configuration.ipinfoLiteToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !token.isEmpty else {
+            exitIPState = .failure("需要配置 IPinfo Lite API Token")
+            return
+        }
+
+        exitIPTask?.cancel()
+        exitIPState = .checking
+        exitIPTask = Task { [weak self] in
+            let result = await ExitIPEngine.fetchIPinfoLite(token: token)
+            guard !Task.isCancelled else { return }
+            switch result {
+            case .success(let info):
+                self?.exitIPState = .success(info)
+            case .failure(let error):
+                self?.exitIPState = .failure(error.message)
+            }
+        }
     }
 
     func testNotification() {
