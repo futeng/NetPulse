@@ -58,6 +58,76 @@ enum PerformanceRating: String, Codable {
     }
 }
 
+enum MenuBarNetworkPace {
+    case idle
+    case excellent
+    case good
+    case slow
+    case verySlow
+    case unstable
+    case unavailable
+    case checking
+}
+
+enum MenuBarRunner: String, CaseIterable, Identifiable {
+    case tropicalFish
+    case clownFish
+    case arowana
+    case bettaFish
+    case goldfish
+    case guppy
+    case neonTetra
+    case angelfish
+    case pufferFish
+    case signalShuttle
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .tropicalFish:
+            return "热带鱼"
+        case .clownFish:
+            return "小丑鱼"
+        case .arowana:
+            return "龙鱼"
+        case .bettaFish:
+            return "斗鱼"
+        case .goldfish:
+            return "金鱼"
+        case .guppy:
+            return "孔雀鱼"
+        case .neonTetra:
+            return "霓虹灯鱼"
+        case .angelfish:
+            return "神仙鱼"
+        case .pufferFish:
+            return "河豚"
+        case .signalShuttle:
+            return "信号梭"
+        }
+    }
+}
+
+extension MenuBarRunner: Codable {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+        if rawValue == "otter" || rawValue == "dolphin" {
+            self = .tropicalFish
+        } else if let runner = MenuBarRunner(rawValue: rawValue) {
+            self = runner
+        } else {
+            self = .tropicalFish
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+}
+
 struct ProbeTarget: Identifiable, Codable, Hashable {
     var id: UUID
     var service: String
@@ -425,6 +495,58 @@ struct NetworkRun: Identifiable, Codable, Hashable {
     }
 }
 
+func weightedNetworkScore(
+    results: [ProbeResult],
+    pinnedTargetIDs: Set<UUID>
+) -> Double? {
+    guard !results.isEmpty else { return nil }
+
+    var weightedTotal = 0.0
+    var totalWeight = 0.0
+
+    for result in results {
+        let weight = pinnedTargetIDs.contains(result.target.id) ? 2.6 : 1.0
+        weightedTotal += networkScore(for: result) * weight
+        totalWeight += weight
+    }
+
+    guard totalWeight > 0 else { return nil }
+    return weightedTotal / totalWeight
+}
+
+func menuBarPace(
+    forWeightedScore score: Double?,
+    availableCount: Int,
+    totalCount: Int
+) -> MenuBarNetworkPace {
+    guard let score, totalCount > 0 else { return .idle }
+    if availableCount == 0 { return .unavailable }
+    if score >= 90 { return .excellent }
+    if score >= 72 { return .good }
+    if score >= 52 { return .slow }
+    if score >= 32 { return .verySlow }
+    return .unstable
+}
+
+private func networkScore(for result: ProbeResult) -> Double {
+    guard !result.samples.isEmpty else { return 55 }
+    guard result.successCount > 0 else { return 0 }
+
+    let reliability = Double(result.successCount) / Double(result.samples.count)
+    let base = latencyScore(for: result.p95Ms)
+    let failurePenalty = Double(result.failureCount) / Double(result.samples.count) * 18
+    return max(0, min(100, base * reliability - failurePenalty))
+}
+
+private func latencyScore(for milliseconds: Double?) -> Double {
+    guard let milliseconds else { return 55 }
+    if milliseconds < 300 { return 100 }
+    if milliseconds < 800 { return 86 }
+    if milliseconds < 1_500 { return 68 }
+    if milliseconds < 3_000 { return 48 }
+    return 35
+}
+
 struct AppConfiguration: Codable, Equatable {
     var targets: [ProbeTarget]
     var scheduleEnabled: Bool
@@ -437,6 +559,7 @@ struct AppConfiguration: Codable, Equatable {
     var launchAtLogin: Bool
     var exitIPCheckEnabled: Bool
     var ipinfoLiteToken: String
+    var menuBarRunner: MenuBarRunner
 
     init(
         targets: [ProbeTarget],
@@ -449,7 +572,8 @@ struct AppConfiguration: Codable, Equatable {
         notificationCooldownMinutes: Int,
         launchAtLogin: Bool,
         exitIPCheckEnabled: Bool = false,
-        ipinfoLiteToken: String = ""
+        ipinfoLiteToken: String = "",
+        menuBarRunner: MenuBarRunner = .tropicalFish
     ) {
         self.targets = targets
         self.scheduleEnabled = scheduleEnabled
@@ -462,6 +586,7 @@ struct AppConfiguration: Codable, Equatable {
         self.launchAtLogin = launchAtLogin
         self.exitIPCheckEnabled = exitIPCheckEnabled
         self.ipinfoLiteToken = ipinfoLiteToken
+        self.menuBarRunner = menuBarRunner
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -476,6 +601,7 @@ struct AppConfiguration: Codable, Equatable {
         case launchAtLogin
         case exitIPCheckEnabled
         case ipinfoLiteToken
+        case menuBarRunner
     }
 
     init(from decoder: Decoder) throws {
@@ -500,6 +626,10 @@ struct AppConfiguration: Codable, Equatable {
             String.self,
             forKey: .ipinfoLiteToken
         ) ?? ""
+        menuBarRunner = try container.decodeIfPresent(
+            MenuBarRunner.self,
+            forKey: .menuBarRunner
+        ) ?? .tropicalFish
     }
 
     static let `default` = AppConfiguration(
@@ -513,7 +643,8 @@ struct AppConfiguration: Codable, Equatable {
         notificationCooldownMinutes: 30,
         launchAtLogin: false,
         exitIPCheckEnabled: false,
-        ipinfoLiteToken: ""
+        ipinfoLiteToken: "",
+        menuBarRunner: .tropicalFish
     )
 
     func addingMissingBuiltInTargets() -> AppConfiguration {

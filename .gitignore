@@ -1,4 +1,5 @@
 .DS_Store
+.build/
 dist/
 NetPulse/.build/
 NetPulse/.swiftpm/

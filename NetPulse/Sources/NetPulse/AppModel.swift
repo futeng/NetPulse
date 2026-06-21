@@ -69,6 +69,31 @@ final class AppModel: ObservableObject {
         return currentRun?.status ?? .idle
     }
 
+    var menuBarStatus: HealthStatus {
+        guard let run = currentRun, !run.results.isEmpty else { return .idle }
+        if run.availableCount == 0 { return .down }
+        if run.healthyCount == run.results.count { return .healthy }
+        return .degraded
+    }
+
+    var menuBarNetworkScore: Double? {
+        guard let run = currentRun, !run.results.isEmpty else { return nil }
+        return weightedNetworkScore(
+            results: run.results,
+            pinnedTargetIDs: Set(configuration.targets.filter(\.isPinned).map(\.id))
+        )
+    }
+
+    var menuBarNetworkPace: MenuBarNetworkPace {
+        if isRunning { return .checking }
+        guard let run = currentRun, !run.results.isEmpty else { return .idle }
+        return menuBarPace(
+            forWeightedScore: menuBarNetworkScore,
+            availableCount: run.availableCount,
+            totalCount: run.results.count
+        )
+    }
+
     func start() {
         guard !hasStarted else { return }
         hasStarted = true
@@ -228,6 +253,12 @@ final class AppModel: ObservableObject {
     func setIPinfoLiteToken(_ token: String) {
         var updated = configuration
         updated.ipinfoLiteToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        configuration = updated
+    }
+
+    func setMenuBarRunner(_ runner: MenuBarRunner) {
+        var updated = configuration
+        updated.menuBarRunner = runner
         configuration = updated
     }
 

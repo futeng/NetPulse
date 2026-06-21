@@ -28,7 +28,11 @@ struct DashboardView: View {
 
     private var header: some View {
         HStack(spacing: 16) {
-            StatusMark(status: model.overallStatus, isRunning: model.isRunning)
+            StatusMark(
+                status: model.overallStatus,
+                isRunning: model.isRunning,
+                runner: model.configuration.menuBarRunner
+            )
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(model.isRunning ? "正在进行真实访问检测" : overallTitle)
@@ -72,7 +76,9 @@ struct DashboardView: View {
         guard let run = model.currentRun else {
             return "检测 DNS、TCP、TLS、HTTP 首包和真实内容读取"
         }
-        return "健康 \(run.healthyCount)/\(run.results.count) · 可用 \(run.availableCount)/\(run.results.count) · 总耗时 \(formatMilliseconds(run.durationMs)) · \(run.finishedAt.formatted(date: .omitted, time: .standard))"
+        let scoreText = model.menuBarNetworkScore
+            .map { " · 体验分 \(Int($0.rounded()))/100" } ?? ""
+        return "健康 \(run.healthyCount)/\(run.results.count) · 可用 \(run.availableCount)/\(run.results.count)\(scoreText) · 总耗时 \(formatMilliseconds(run.durationMs)) · \(run.finishedAt.formatted(date: .omitted, time: .standard))"
     }
 }
 
@@ -190,8 +196,6 @@ struct CurrentResultsView: View {
                         if model.configuration.exitIPCheckEnabled
                             || !model.configuration.ipinfoLiteToken.isEmpty {
                             ExitIPSummaryCard(showingConfiguration: $showingConfiguration)
-                            Divider()
-                                .padding(.leading, 20)
                         }
 
                         ForEach(model.displayedResults) { result in
@@ -326,9 +330,18 @@ private struct ExitIPSummaryCard: View {
             .buttonStyle(.borderless)
             .help("配置出口 IP")
         }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .background {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(cardBackground)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(cardBorder, lineWidth: 1)
+        }
         .padding(.horizontal, 20)
-        .padding(.vertical, 10)
-        .background(cardBackground)
+        .padding(.vertical, 12)
     }
 
     @ViewBuilder
@@ -382,9 +395,24 @@ private struct ExitIPSummaryCard: View {
     private var cardBackground: Color {
         switch model.exitIPState {
         case .failure:
-            Color.orange.opacity(0.06)
+            Color.orange.opacity(0.08)
+        case .success:
+            Color.accentColor.opacity(0.075)
+        case .checking:
+            Color.accentColor.opacity(0.055)
         default:
-            Color(nsColor: .controlBackgroundColor).opacity(0.35)
+            Color(nsColor: .controlBackgroundColor).opacity(0.72)
+        }
+    }
+
+    private var cardBorder: Color {
+        switch model.exitIPState {
+        case .failure:
+            Color.orange.opacity(0.18)
+        case .success, .checking:
+            Color.accentColor.opacity(0.14)
+        default:
+            Color.primary.opacity(0.06)
         }
     }
 

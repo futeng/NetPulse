@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import NetPulse
 
@@ -48,6 +49,80 @@ final class NetPulseTests: XCTestCase {
 
         XCTAssertFalse(configuration.exitIPCheckEnabled)
         XCTAssertEqual(configuration.ipinfoLiteToken, "")
+        XCTAssertEqual(configuration.menuBarRunner, .tropicalFish)
+    }
+
+    func testLegacyMenuBarRunnerMigratesToTropicalFish() throws {
+        for legacyValue in ["otter", "dolphin"] {
+            let json = "\"\(legacyValue)\""
+
+            let runner = try JSONDecoder().decode(
+                MenuBarRunner.self,
+                from: Data(json.utf8)
+            )
+
+            XCTAssertEqual(runner, .tropicalFish)
+        }
+    }
+
+    func testMenuBarRunnersRenderVisibleAnimatedFrames() throws {
+        let first = MenuBarIconRenderer.image(for: .good, runner: .tropicalFish, phase: 0.1)
+        let second = MenuBarIconRenderer.image(for: .good, runner: .tropicalFish, phase: 0.6)
+        let firstPixels = try rgbaPixels(from: first)
+        let secondPixels = try rgbaPixels(from: second)
+
+        XCTAssertGreaterThan(nonTransparentPixelCount(firstPixels), 60)
+        XCTAssertGreaterThan(nonTransparentPixelCount(secondPixels), 60)
+        XCTAssertNotEqual(firstPixels, secondPixels)
+
+        for runner in MenuBarRunner.allCases {
+            let image = MenuBarIconRenderer.image(for: .slow, runner: runner, phase: 0.35)
+            XCTAssertGreaterThan(nonTransparentPixelCount(try rgbaPixels(from: image)), 40)
+        }
+
+        let tropical = try rgbaPixels(
+            from: MenuBarIconRenderer.image(for: .good, runner: .tropicalFish, phase: 0.35)
+        )
+        let clown = try rgbaPixels(
+            from: MenuBarIconRenderer.image(for: .good, runner: .clownFish, phase: 0.35)
+        )
+        XCTAssertNotEqual(tropical, clown)
+    }
+
+    func testPinnedTargetsHaveHigherWeightInMenuBarScore() {
+        let fast = ProbeResult(
+            target: ProbeTarget(
+                service: "Core",
+                name: "Fast",
+                category: .text,
+                urlString: "https://fast.example.com"
+            ),
+            resolvedAddresses: [],
+            samples: [successfulSample(totalMs: 120), successfulSample(totalMs: 130), successfulSample(totalMs: 140)]
+        )
+        let slow = ProbeResult(
+            target: ProbeTarget(
+                service: "Important",
+                name: "Pinned slow",
+                category: .api,
+                urlString: "https://slow.example.com"
+            ),
+            resolvedAddresses: [],
+            samples: [successfulSample(totalMs: 2_200), successfulSample(totalMs: 2_300), successfulSample(totalMs: 2_400)]
+        )
+
+        let unpinnedScore = weightedNetworkScore(results: [fast, slow], pinnedTargetIDs: []) ?? 0
+        let pinnedScore = weightedNetworkScore(results: [fast, slow], pinnedTargetIDs: [slow.target.id]) ?? 0
+
+        XCTAssertLessThan(pinnedScore, unpinnedScore)
+        XCTAssertEqual(
+            menuBarPace(forWeightedScore: 100, availableCount: 2, totalCount: 2),
+            .excellent
+        )
+        XCTAssertEqual(
+            menuBarPace(forWeightedScore: pinnedScore, availableCount: 2, totalCount: 2),
+            .slow
+        )
     }
 
     func testPinnedResultsAreMovedFirstWithoutReorderingOthers() {
@@ -206,6 +281,37 @@ final class NetPulseTests: XCTestCase {
         XCTAssertEqual(edited.rangeBytes, 65_536)
     }
 
+    private func rgbaPixels(from image: NSImage) throws -> [UInt8] {
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            throw NSError(domain: "NetPulseTests", code: 1)
+        }
+
+        var pixels = [UInt8](repeating: 0, count: cgImage.width * cgImage.height * 4)
+        guard let context = CGContext(
+            data: &pixels,
+            width: cgImage.width,
+            height: cgImage.height,
+            bitsPerComponent: 8,
+            bytesPerRow: cgImage.width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            throw NSError(domain: "NetPulseTests", code: 2)
+        }
+
+        context.draw(
+            cgImage,
+            in: CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height)
+        )
+        return pixels
+    }
+
+    private func nonTransparentPixelCount(_ pixels: [UInt8]) -> Int {
+        stride(from: 3, to: pixels.count, by: 4).reduce(0) { count, index in
+            count + (pixels[index] > 0 ? 1 : 0)
+        }
+    }
+
     func testPercentile() {
         XCTAssertEqual(percentile([100, 200, 300], 0.5), 200)
         XCTAssertEqual(percentile([100, 200, 300], 0.95), 300)
@@ -326,6 +432,21 @@ final class NetPulseTests: XCTestCase {
             ),
             resolvedAddresses: [],
             samples: []
+        )
+    }
+
+    private func successfulSample(totalMs: Double) -> ProbeSample {
+        ProbeSample(
+            ok: true,
+            checkedAt: Date(),
+            statusCode: 200,
+            contentType: "text/plain",
+            bytesRead: 100,
+            timings: ProbeTimings(totalMs: totalMs),
+            protocolName: "h2",
+            isProxyConnection: false,
+            errorPhase: nil,
+            errorDetail: nil
         )
     }
 }

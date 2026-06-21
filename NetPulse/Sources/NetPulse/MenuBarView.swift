@@ -8,8 +8,8 @@ struct MenuBarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                StatusDot(status: model.overallStatus)
-                Text(model.isRunning ? "检测中" : model.overallStatus.title)
+                StatusDot(status: model.menuBarStatus)
+                Text(model.isRunning ? "检测中" : model.menuBarStatus.title)
                     .font(.headline)
                 Spacer()
                 if let run = model.currentRun {

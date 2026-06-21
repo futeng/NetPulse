@@ -1,24 +1,24 @@
+import AppKit
 import SwiftUI
+
+@MainActor
+final class NetPulseAppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
+    let model = AppModel()
+    private var statusBarController: StatusBarController?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        statusBarController = StatusBarController(model: model)
+    }
+}
 
 @main
 struct NetPulseApp: App {
-    @StateObject private var model = AppModel()
+    @NSApplicationDelegateAdaptor(NetPulseAppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra {
-            MenuBarView()
-                .environmentObject(model)
-        } label: {
-            NetworkPulseMenuBarIcon(
-                status: model.overallStatus,
-                isRunning: model.isRunning
-            )
-        }
-        .menuBarExtraStyle(.window)
-
         Window("NetPulse", id: "dashboard") {
             DashboardView()
-                .environmentObject(model)
+                .environmentObject(appDelegate.model)
         }
         .handlesExternalEvents(matching: ["dashboard"])
         .defaultSize(width: 980, height: 700)
@@ -26,10 +26,10 @@ struct NetPulseApp: App {
             CommandGroup(replacing: .newItem) { }
             CommandMenu("检测") {
                 Button("立即检测") {
-                    model.runNow()
+                    appDelegate.model.runNow()
                 }
                 .keyboardShortcut("r", modifiers: [.command])
-                .disabled(model.isRunning)
+                .disabled(appDelegate.model.isRunning)
             }
         }
     }
