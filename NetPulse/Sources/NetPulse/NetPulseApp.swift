@@ -29,7 +29,7 @@ struct NetPulseApp: App {
                     appDelegate.model.runNow()
                 }
                 .keyboardShortcut("r", modifiers: [.command])
-                .disabled(appDelegate.model.isRunning)
+                .disabled(appDelegate.model.isAnyProbeRunning)
             }
         }
     }

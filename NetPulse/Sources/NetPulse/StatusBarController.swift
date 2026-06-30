@@ -76,7 +76,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private func rebuildMenu() {
         menu.removeAllItems()
 
-        let statusTitle = model.isRunning ? "检测中" : model.menuBarStatus.title
+        let statusTitle = model.isAnyProbeRunning ? "检测中" : model.menuBarStatus.title
         let statusItem = NSMenuItem(title: "\(statusTitle)  \(currentTimeText)", action: nil, keyEquivalent: "")
         statusItem.isEnabled = false
         menu.addItem(statusItem)
@@ -102,7 +102,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         let runItem = NSMenuItem(title: "立即检测", action: #selector(runNow), keyEquivalent: "r")
         runItem.target = self
-        runItem.isEnabled = !model.isRunning
+        runItem.isEnabled = !model.isAnyProbeRunning
         menu.addItem(runItem)
 
         let dashboardItem = NSMenuItem(title: "打开面板", action: #selector(openDashboard), keyEquivalent: "")

@@ -9,7 +9,7 @@ struct MenuBarView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 StatusDot(status: model.menuBarStatus)
-                Text(model.isRunning ? "检测中" : model.menuBarStatus.title)
+                Text(model.isAnyProbeRunning ? "检测中" : model.menuBarStatus.title)
                     .font(.headline)
                 Spacer()
                 if let run = model.currentRun {
@@ -40,7 +40,7 @@ struct MenuBarView: View {
             } label: {
                 Label("立即检测", systemImage: "play.fill")
             }
-            .disabled(model.isRunning)
+            .disabled(model.isAnyProbeRunning)
 
             Button {
                 openWindow(id: "dashboard")

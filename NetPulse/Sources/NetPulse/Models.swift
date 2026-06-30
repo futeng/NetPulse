@@ -237,6 +237,20 @@ struct ProbeTarget: Identifiable, Codable, Hashable {
         return uuid
     }
 
+    private static let grokWebID = builtInID("4F6F9B31-BB1C-44CE-8E6E-7B1651C4BB71")
+
+    func applyingBuiltInProbeMigrations() -> ProbeTarget {
+        guard isBuiltIn,
+              id == Self.grokWebID,
+              urlString == "https://grok.com/" else {
+            return self
+        }
+
+        var updated = self
+        updated.acceptedStatusCodes = [200, 403]
+        return updated
+    }
+
     static let builtIns: [ProbeTarget] = [
         ProbeTarget(
             service: "Google",
@@ -317,12 +331,12 @@ struct ProbeTarget: Identifiable, Codable, Hashable {
             isBuiltIn: true
         ),
         ProbeTarget(
-            id: builtInID("4F6F9B31-BB1C-44CE-8E6E-7B1651C4BB71"),
+            id: grokWebID,
             service: "Grok",
             name: "Grok Web",
             category: .text,
             urlString: "https://grok.com/",
-            acceptedStatusCodes: [200],
+            acceptedStatusCodes: [200, 403],
             expectedContentPrefix: "text/html",
             minimumBytes: 1_024,
             isBuiltIn: true
@@ -421,7 +435,7 @@ struct ProbeResult: Identifiable, Codable, Hashable {
 
     var successCount: Int { samples.filter(\.ok).count }
     var failureCount: Int { samples.count - successCount }
-    var lossPercent: Double {
+    var failurePercent: Double {
         guard !samples.isEmpty else { return 0 }
         return Double(failureCount) / Double(samples.count) * 100
     }
@@ -446,6 +460,11 @@ struct ProbeResult: Identifiable, Codable, Hashable {
         samples.first(where: { !$0.ok }).flatMap {
             [$0.errorPhase, $0.errorDetail].compactMap { $0 }.joined(separator: ": ")
         }
+    }
+    var requiresBrowserVerification: Bool {
+        target.category == .text
+            && !samples.isEmpty
+            && samples.allSatisfy { $0.ok && $0.statusCode == 403 }
     }
     var usesFakeIPAddress: Bool {
         resolvedAddresses.contains(where: isFakeIPv4)
@@ -492,6 +511,22 @@ struct NetworkRun: Identifiable, Codable, Hashable {
         if results.contains(where: { $0.status == .down }) { return .down }
         if results.contains(where: { $0.status == .degraded }) { return .degraded }
         return .healthy
+    }
+
+    func replacingResult(_ result: ProbeResult) -> NetworkRun {
+        var updated = self
+        if let index = updated.results.firstIndex(where: { $0.target.id == result.target.id }) {
+            updated.results[index] = result
+        } else {
+            updated.results.append(result)
+            updated.results.sort {
+                if $0.target.service == $1.target.service {
+                    return $0.target.name < $1.target.name
+                }
+                return $0.target.service < $1.target.service
+            }
+        }
+        return updated
     }
 }
 
@@ -649,6 +684,7 @@ struct AppConfiguration: Codable, Equatable {
 
     func addingMissingBuiltInTargets() -> AppConfiguration {
         var updated = self
+        updated.targets = updated.targets.map { $0.applyingBuiltInProbeMigrations() }
         let existingIDs = Set(updated.targets.map(\.id))
         let existingURLs = Set(updated.targets.map(\.urlString))
         let existingNames = Set(updated.targets.map { "\($0.service)\u{1f}\($0.name)" })

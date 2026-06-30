@@ -28,8 +28,8 @@ struct MetricGuideView: View {
                     detail: "198.18.0.0–198.19.255.255 是保留的测试地址段。Shadowrocket 用它把域名映射到虚拟地址。它不是你的本地真实 IP、不是公网出口 IP，也不是网站服务器 IP；仅显示该地址不会造成隐私泄露。"
                 )
                 GuideSection(
-                    title: "成功与丢失",
-                    detail: "成功表示完成了真实 HTTP 访问；丢失包含连接失败、TLS 失败和超时。只要出现丢失，即标记为“不稳定”。"
+                    title: "成功与失败",
+                    detail: "成功表示完成了真实 HTTP 访问；失败包含连接失败、TLS 失败和超时。这里显示的是探测失败率，不是底层网络丢包率。只要出现失败，即标记为“不稳定”。"
                 )
                 GuideSection(
                     title: "中位、P95、最慢",
