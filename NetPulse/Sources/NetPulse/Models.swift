@@ -512,6 +512,22 @@ struct NetworkRun: Identifiable, Codable, Hashable {
         if results.contains(where: { $0.status == .degraded }) { return .degraded }
         return .healthy
     }
+
+    func replacingResult(_ result: ProbeResult) -> NetworkRun {
+        var updated = self
+        if let index = updated.results.firstIndex(where: { $0.target.id == result.target.id }) {
+            updated.results[index] = result
+        } else {
+            updated.results.append(result)
+            updated.results.sort {
+                if $0.target.service == $1.target.service {
+                    return $0.target.name < $1.target.name
+                }
+                return $0.target.service < $1.target.service
+            }
+        }
+        return updated
+    }
 }
 
 func weightedNetworkScore(

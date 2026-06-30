@@ -9,6 +9,10 @@ struct ProbeResultRow: View {
         model.routeInsight(for: result)
     }
 
+    private var isTargetRunning: Bool {
+        model.isTargetRunning(result.target.id)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 14) {
@@ -125,23 +129,54 @@ struct ProbeResultRow: View {
                 ? Color.accentColor.opacity(0.055)
                 : Color.clear
         )
+        .contextMenu {
+            Button {
+                model.runTargetNow(result.target)
+            } label: {
+                Label("仅检测此目标", systemImage: "arrow.clockwise")
+            }
+            .disabled(model.isAnyProbeRunning)
+        }
     }
 
     private var details: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
                 Label(result.routeLabel, systemImage: "network")
+                    .help(result.routeExplanation)
                 if !result.resolvedAddresses.isEmpty {
                     Text("·")
                         .foregroundStyle(.tertiary)
                     Text(addressDetail)
                         .textSelection(.enabled)
+                        .help(result.routeExplanation)
                 }
                 Spacer()
+                if let checkedAt = result.samples.last?.checkedAt {
+                    Text("检测于 \(checkedAt.formatted(date: .omitted, time: .standard))")
+                        .foregroundStyle(.tertiary)
+                }
+                Button {
+                    model.runTargetNow(result.target)
+                } label: {
+                    if isTargetRunning {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("检测中")
+                        }
+                    } else {
+                        Label("检测此目标", systemImage: "arrow.clockwise")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(model.isAnyProbeRunning)
+                .accessibilityLabel(isTargetRunning ? "正在检测此目标" : "检测此目标")
+                .help("仅检测此目标，按当前设置采样 \(model.configuration.sampleCount) 次")
             }
             .font(.caption)
             .foregroundStyle(.secondary)
-            .help(result.routeExplanation)
 
             ForEach(Array(result.samples.enumerated()), id: \.element.id) { index, sample in
                 SampleRow(index: index + 1, sample: sample)

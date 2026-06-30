@@ -15,6 +15,7 @@ final class AppModel: ObservableObject {
     @Published var history: [NetworkRun]
     @Published var currentRun: NetworkRun?
     @Published var isRunning = false
+    @Published private(set) var runningTargetIDs: Set<UUID> = []
     @Published var selectedService = "全部"
     @Published var launchAtLoginError: String?
     @Published var notificationPermission = "正在检查通知权限"
@@ -65,8 +66,12 @@ final class AppModel: ObservableObject {
     }
 
     var overallStatus: HealthStatus {
-        if isRunning { return currentRun?.status ?? .idle }
+        if isAnyProbeRunning { return currentRun?.status ?? .idle }
         return currentRun?.status ?? .idle
+    }
+
+    var isAnyProbeRunning: Bool {
+        isRunning || !runningTargetIDs.isEmpty
     }
 
     var menuBarStatus: HealthStatus {
@@ -85,7 +90,7 @@ final class AppModel: ObservableObject {
     }
 
     var menuBarNetworkPace: MenuBarNetworkPace {
-        if isRunning { return .checking }
+        if isAnyProbeRunning { return .checking }
         guard let run = currentRun, !run.results.isEmpty else { return .idle }
         return menuBarPace(
             forWeightedScore: menuBarNetworkScore,
@@ -109,7 +114,7 @@ final class AppModel: ObservableObject {
     }
 
     func runNow() {
-        guard !isRunning else { return }
+        guard !isAnyProbeRunning else { return }
         isRunning = true
         let configurationSnapshot = configuration
         Task {
@@ -126,6 +131,43 @@ final class AppModel: ObservableObject {
             await notificationManager.process(run: run, configuration: configurationSnapshot)
             refreshExitIP()
         }
+    }
+
+    func runTargetNow(_ target: ProbeTarget) {
+        guard !isAnyProbeRunning else { return }
+        runningTargetIDs.insert(target.id)
+        let sampleCount = configuration.sampleCount
+        let timeoutSeconds = configuration.timeoutSeconds
+
+        Task {
+            defer {
+                runningTargetIDs.remove(target.id)
+            }
+
+            let result = await ProbeEngine.probe(
+                target: target,
+                sampleCount: sampleCount,
+                timeoutSeconds: timeoutSeconds
+            )
+            guard configuration.targets.contains(where: { $0.id == target.id }) else {
+                return
+            }
+
+            if let run = currentRun {
+                currentRun = run.replacingResult(result)
+            } else {
+                let startedAt = result.samples.first?.checkedAt ?? Date()
+                currentRun = NetworkRun(
+                    startedAt: startedAt,
+                    finishedAt: Date(),
+                    results: [result]
+                )
+            }
+        }
+    }
+
+    func isTargetRunning(_ targetID: UUID) -> Bool {
+        runningTargetIDs.contains(targetID)
     }
 
     func addTarget(
@@ -203,7 +245,15 @@ final class AppModel: ObservableObject {
     }
 
     func routeInsight(for result: ProbeResult) -> CDNRouteInsight? {
-        cdnRouteInsight(for: result, history: history)
+        var diagnosticHistory = history
+        if let currentRun {
+            if let index = diagnosticHistory.firstIndex(where: { $0.id == currentRun.id }) {
+                diagnosticHistory[index] = currentRun
+            } else {
+                diagnosticHistory.insert(currentRun, at: 0)
+            }
+        }
+        return cdnRouteInsight(for: result, history: diagnosticHistory)
     }
 
     func openShadowrocket() {

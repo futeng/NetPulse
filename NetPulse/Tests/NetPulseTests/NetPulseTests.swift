@@ -562,6 +562,30 @@ final class NetPulseTests: XCTestCase {
         XCTAssertTrue(result.usesFakeIPAddress)
     }
 
+    func testReplacingSingleTargetResultPreservesRunAndOtherTargets() {
+        let first = makeEmptyResult(name: "First")
+        let second = makeEmptyResult(name: "Second")
+        let run = NetworkRun(
+            startedAt: Date(timeIntervalSince1970: 100),
+            finishedAt: Date(timeIntervalSince1970: 110),
+            results: [first, second]
+        )
+        let replacement = ProbeResult(
+            target: first.target,
+            resolvedAddresses: ["203.0.113.10"],
+            samples: [successfulSample(totalMs: 125)]
+        )
+
+        let updated = run.replacingResult(replacement)
+
+        XCTAssertEqual(updated.id, run.id)
+        XCTAssertEqual(updated.startedAt, run.startedAt)
+        XCTAssertEqual(updated.finishedAt, run.finishedAt)
+        XCTAssertEqual(updated.results.count, 2)
+        XCTAssertEqual(updated.results[0], replacement)
+        XCTAssertEqual(updated.results[1], second)
+    }
+
     private func makeEmptyResult(name: String) -> ProbeResult {
         ProbeResult(
             target: ProbeTarget(

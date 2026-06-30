@@ -30,12 +30,12 @@ struct DashboardView: View {
         HStack(spacing: 16) {
             StatusMark(
                 status: model.overallStatus,
-                isRunning: model.isRunning,
+                isRunning: model.isAnyProbeRunning,
                 runner: model.configuration.menuBarRunner
             )
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(model.isRunning ? "正在进行真实访问检测" : overallTitle)
+                Text(model.isAnyProbeRunning ? "正在进行真实访问检测" : overallTitle)
                     .font(.title2.weight(.semibold))
                 Text(summaryText)
                     .font(.callout)
@@ -52,7 +52,7 @@ struct DashboardView: View {
                 Label("立即检测", systemImage: "play.fill")
             }
             .buttonStyle(.borderedProminent)
-            .disabled(model.isRunning)
+            .disabled(model.isAnyProbeRunning)
             .keyboardShortcut("r", modifiers: [.command])
         }
         .padding(20)
@@ -180,7 +180,7 @@ struct CurrentResultsView: View {
             toolbar
             Divider()
 
-            if model.isRunning && model.currentRun == nil {
+            if model.isAnyProbeRunning && model.currentRun == nil {
                 Spacer()
                 ProgressView("正在分批检测所有目标…")
                 Spacer()
