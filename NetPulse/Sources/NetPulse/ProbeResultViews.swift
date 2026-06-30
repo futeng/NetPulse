@@ -5,6 +5,10 @@ struct ProbeResultRow: View {
     let result: ProbeResult
     @State private var expanded = false
 
+    private var routeInsight: CDNRouteInsight? {
+        model.routeInsight(for: result)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 14) {
@@ -27,6 +31,17 @@ struct ProbeResultRow: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 PerformanceLabel(rating: result.performanceRating)
+                                if routeInsight?.isCurrentPathProblematic == true {
+                                    Label("CDN 路径异常", systemImage: "point.3.connected.trianglepath.dotted")
+                                        .font(.caption2.weight(.medium))
+                                        .foregroundStyle(.orange)
+                                }
+                                if result.requiresBrowserVerification {
+                                    Label("需浏览器验证", systemImage: "checkmark.shield")
+                                        .font(.caption2.weight(.medium))
+                                        .foregroundStyle(.secondary)
+                                        .help("网络入口可达；Grok 的 Cloudflare 防护要求真实浏览器完成验证")
+                                }
                             }
                             Text(rowSubtitle)
                                 .font(.caption)
@@ -47,10 +62,10 @@ struct ProbeResultRow: View {
                     help: "成功完成真实 HTTP 访问的采样数 / 总采样数"
                 )
                 MetricCell(
-                    title: "丢失",
-                    value: "\(Int(result.lossPercent))%",
+                    title: "失败",
+                    value: "\(Int(result.failurePercent))%",
                     color: result.failureCount == 0 ? .primary : .red,
-                    help: "失败或超时的采样比例"
+                    help: "HTTP 探测失败或超时的比例，不等同于底层网络丢包率"
                 )
                 MetricCell(
                     title: "中位",
@@ -142,6 +157,11 @@ struct ProbeResultRow: View {
                 }
                 .padding(.top, 4)
             }
+            if let routeInsight {
+                CDNRouteInsightCard(insight: routeInsight)
+                    .environmentObject(model)
+                    .padding(.top, 4)
+            }
             Text(result.target.urlString)
                 .font(.caption.monospaced())
                 .foregroundStyle(.secondary)
@@ -173,6 +193,73 @@ struct ProbeResultRow: View {
         withAnimation(.easeInOut(duration: 0.15)) {
             expanded.toggle()
         }
+    }
+}
+
+private struct CDNRouteInsightCard: View {
+    @EnvironmentObject private var model: AppModel
+    let insight: CDNRouteInsight
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: insight.isCurrentPathProblematic
+                ? "exclamationmark.arrow.triangle.2.circlepath"
+                : "point.3.connected.trianglepath.dotted")
+                .foregroundStyle(insight.isCurrentPathProblematic ? .orange : .secondary)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(insight.title)
+                    .font(.caption.weight(.semibold))
+                Text(insight.summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 12)
+
+            Menu {
+                Button {
+                    model.openShadowrocket()
+                } label: {
+                    Label("打开 Shadowrocket", systemImage: "app.dashed")
+                }
+
+                Button {
+                    model.copyToPasteboard(insight.temporaryHostRule)
+                } label: {
+                    Label("复制临时 Host 映射", systemImage: "doc.on.doc")
+                }
+
+                Button {
+                    model.copyToPasteboard(shadowrocketXRules)
+                } label: {
+                    Label("复制 X 代理规则", systemImage: "list.bullet.clipboard")
+                }
+            } label: {
+                Label("处理建议", systemImage: "wrench.and.screwdriver")
+                    .font(.caption)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("优先切换代理节点；Host 映射仅用于临时绕开异常 CDN 地址")
+        }
+        .padding(10)
+        .background(Color.orange.opacity(insight.isCurrentPathProblematic ? 0.08 : 0.045))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color.orange.opacity(0.18), lineWidth: 1)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    private var shadowrocketXRules: String {
+        """
+        DOMAIN-SUFFIX,x.com,PROXY
+        DOMAIN-SUFFIX,t.co,PROXY
+        DOMAIN-SUFFIX,twimg.com,PROXY
+        """
     }
 }
 

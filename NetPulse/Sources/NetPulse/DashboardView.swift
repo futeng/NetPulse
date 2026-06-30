@@ -182,7 +182,7 @@ struct CurrentResultsView: View {
 
             if model.isRunning && model.currentRun == nil {
                 Spacer()
-                ProgressView("正在并发检测所有目标…")
+                ProgressView("正在分批检测所有目标…")
                 Spacer()
             } else if model.displayedResults.isEmpty {
                 EmptyStateView(

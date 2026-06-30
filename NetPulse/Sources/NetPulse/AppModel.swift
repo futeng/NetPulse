@@ -202,6 +202,24 @@ final class AppModel: ObservableObject {
         configuration.targets.first(where: { $0.id == targetID })?.isPinned ?? false
     }
 
+    func routeInsight(for result: ProbeResult) -> CDNRouteInsight? {
+        cdnRouteInsight(for: result, history: history)
+    }
+
+    func openShadowrocket() {
+        guard let applicationURL = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: "com.liguangming.Shadowrocket"
+        ) else {
+            return
+        }
+        NSWorkspace.shared.open(applicationURL)
+    }
+
+    func copyToPasteboard(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
     func restoreBuiltIns() {
         let custom = configuration.targets.filter { !$0.isBuiltIn }
         let pinnedURLs = Set(configuration.targets.filter(\.isPinned).map(\.urlString))

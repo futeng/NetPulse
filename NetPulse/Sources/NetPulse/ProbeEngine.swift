@@ -22,6 +22,8 @@ private final class MetricsDelegate: NSObject, URLSessionTaskDelegate, @unchecke
 }
 
 enum ProbeEngine {
+    private static let maximumConcurrentTargets = 6
+
     static func run(
         targets: [ProbeTarget],
         sampleCount: Int,
@@ -30,26 +32,44 @@ enum ProbeEngine {
         let startedAt = Date()
         let enabledTargets = targets.filter(\.enabled)
 
-        let results = await withTaskGroup(of: ProbeResult.self, returning: [ProbeResult].self) { group in
-            for target in enabledTargets {
-                group.addTask {
-                    await probe(target: target, sampleCount: sampleCount, timeoutSeconds: timeoutSeconds)
+        var results: [ProbeResult] = []
+        for startIndex in stride(
+            from: 0,
+            to: enabledTargets.count,
+            by: maximumConcurrentTargets
+        ) {
+            let endIndex = min(startIndex + maximumConcurrentTargets, enabledTargets.count)
+            let batch = enabledTargets[startIndex..<endIndex]
+            let batchResults = await withTaskGroup(
+                of: ProbeResult.self,
+                returning: [ProbeResult].self
+            ) { group in
+                for target in batch {
+                    group.addTask {
+                        await probe(
+                            target: target,
+                            sampleCount: sampleCount,
+                            timeoutSeconds: timeoutSeconds
+                        )
+                    }
                 }
-            }
 
-            var output: [ProbeResult] = []
-            for await result in group {
-                output.append(result)
-            }
-            return output.sorted {
-                if $0.target.service == $1.target.service {
-                    return $0.target.name < $1.target.name
+                var output: [ProbeResult] = []
+                for await result in group {
+                    output.append(result)
                 }
-                return $0.target.service < $1.target.service
+                return output
             }
+            results.append(contentsOf: batchResults)
         }
 
-        return NetworkRun(startedAt: startedAt, finishedAt: Date(), results: results)
+        let sortedResults = results.sorted {
+            if $0.target.service == $1.target.service {
+                return $0.target.name < $1.target.name
+            }
+            return $0.target.service < $1.target.service
+        }
+        return NetworkRun(startedAt: startedAt, finishedAt: Date(), results: sortedResults)
     }
 
     static func probe(
@@ -58,17 +78,11 @@ enum ProbeEngine {
         timeoutSeconds: Double
     ) async -> ProbeResult {
         let addresses = await resolve(host: URL(string: target.urlString)?.host)
-        let samples = await withTaskGroup(of: ProbeSample.self, returning: [ProbeSample].self) { group in
-            for _ in 0..<max(1, sampleCount) {
-                group.addTask {
-                    await sample(target: target, timeoutSeconds: timeoutSeconds)
-                }
-            }
-            var output: [ProbeSample] = []
-            for await sample in group {
-                output.append(sample)
-            }
-            return output.sorted { $0.checkedAt < $1.checkedAt }
+        var samples: [ProbeSample] = []
+        for _ in 0..<max(1, sampleCount) {
+            samples.append(
+                await sample(target: target, timeoutSeconds: timeoutSeconds)
+            )
         }
         return ProbeResult(target: target, resolvedAddresses: addresses, samples: samples)
     }

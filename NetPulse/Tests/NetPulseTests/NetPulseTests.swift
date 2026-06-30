@@ -152,6 +152,52 @@ final class NetPulseTests: XCTestCase {
             "https://api.x.ai/v1/models"
         ])
         XCTAssertEqual(grokTargets.map(\.isBuiltIn), [true, true, true])
+        XCTAssertEqual(grokTargets.first?.acceptedStatusCodes, [200, 403])
+    }
+
+    func testExistingGrokWebTargetMigratesCloudflareChallengeStatus() {
+        var configuration = AppConfiguration.default
+        guard let index = configuration.targets.firstIndex(where: {
+            $0.name == "Grok Web"
+        }) else {
+            return XCTFail("Missing Grok Web built-in")
+        }
+        configuration.targets[index].acceptedStatusCodes = [200]
+
+        let migrated = configuration.addingMissingBuiltInTargets()
+        let grokWeb = migrated.targets.first { $0.name == "Grok Web" }
+
+        XCTAssertEqual(grokWeb?.acceptedStatusCodes, [200, 403])
+    }
+
+    func testAcceptedWebChallengeRequiresBrowserVerification() {
+        let target = ProbeTarget(
+            service: "Grok",
+            name: "Grok Web",
+            category: .text,
+            urlString: "https://grok.com/",
+            acceptedStatusCodes: [200, 403]
+        )
+        let challenge = ProbeSample(
+            ok: true,
+            checkedAt: Date(),
+            statusCode: 403,
+            contentType: "text/html",
+            bytesRead: 5_000,
+            timings: ProbeTimings(totalMs: 320),
+            protocolName: "h2",
+            isProxyConnection: false,
+            errorPhase: nil,
+            errorDetail: nil
+        )
+        let result = ProbeResult(
+            target: target,
+            resolvedAddresses: ["198.18.0.36"],
+            samples: [challenge, challenge, challenge]
+        )
+
+        XCTAssertTrue(result.requiresBrowserVerification)
+        XCTAssertEqual(result.status, .healthy)
     }
 
     func testMissingBuiltInsAreAddedWithoutDuplicatingExistingTargets() {
@@ -358,12 +404,106 @@ final class NetPulseTests: XCTestCase {
         )
 
         XCTAssertEqual(result.status, .degraded)
-        XCTAssertEqual(result.lossPercent, 100.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(result.failurePercent, 100.0 / 3.0, accuracy: 0.001)
         XCTAssertEqual(result.medianMs, 75)
         XCTAssertEqual(result.worstMs, 5_000)
         XCTAssertEqual(result.performanceRating, .unstable)
         XCTAssertEqual(result.routeLabel, "Shadowrocket TUN（虚拟 IP）")
         XCTAssertTrue(result.usesFakeIPAddress)
+    }
+
+    func testCDNRouteInsightFindsProblematicAddress() {
+        let target = ProbeTarget(
+            service: "X",
+            name: "X 视频",
+            category: .video,
+            urlString: "https://video.twimg.com/test.mp4"
+        )
+        let bad = makeResult(
+            target: target,
+            address: "140.248.128.158",
+            samples: [
+                failedSample(), failedSample(), successfulSample(totalMs: 1_400),
+                failedSample(), failedSample(), successfulSample(totalMs: 1_300)
+            ]
+        )
+        let good = makeResult(
+            target: target,
+            address: "146.75.44.158",
+            samples: (0..<6).map { _ in successfulSample(totalMs: 220) }
+        )
+        let history = [
+            makeRun(result: bad),
+            makeRun(result: good)
+        ]
+
+        let insight = cdnRouteInsight(for: bad, history: history)
+
+        XCTAssertEqual(insight?.problematic.address, "140.248.128.158")
+        XCTAssertEqual(insight?.healthy.address, "146.75.44.158")
+        XCTAssertEqual(
+            insight?.problematic.failurePercent ?? -1,
+            200.0 / 3.0,
+            accuracy: 0.001
+        )
+        XCTAssertTrue(insight?.isCurrentPathProblematic == true)
+        XCTAssertEqual(
+            insight?.temporaryHostRule,
+            "video.twimg.com = 146.75.44.158"
+        )
+    }
+
+    func testCDNRouteInsightRemainsVisibleOnHealthyAddress() {
+        let target = ProbeTarget(
+            service: "X",
+            name: "X 视频",
+            category: .video,
+            urlString: "https://video.twimg.com/test.mp4"
+        )
+        let bad = makeResult(
+            target: target,
+            address: "140.248.128.158",
+            samples: (0..<6).map { _ in failedSample() }
+        )
+        let good = makeResult(
+            target: target,
+            address: "146.75.44.158",
+            samples: (0..<6).map { _ in successfulSample(totalMs: 220) }
+        )
+
+        let insight = cdnRouteInsight(
+            for: good,
+            history: [makeRun(result: good), makeRun(result: bad)]
+        )
+
+        XCTAssertNotNil(insight)
+        XCTAssertFalse(insight?.isCurrentPathProblematic == true)
+    }
+
+    func testCDNRouteInsightRequiresEnoughEvidence() {
+        let target = ProbeTarget(
+            service: "X",
+            name: "X 视频",
+            category: .video,
+            urlString: "https://video.twimg.com/test.mp4"
+        )
+        let bad = makeResult(
+            target: target,
+            address: "140.248.128.158",
+            samples: [failedSample(), failedSample(), successfulSample(totalMs: 1_300)]
+        )
+        let good = makeResult(
+            target: target,
+            address: "146.75.44.158",
+            samples: (0..<6).map { _ in successfulSample(totalMs: 220) }
+        )
+
+        XCTAssertNil(
+            cdnRouteInsight(
+                for: bad,
+                history: [makeRun(result: bad), makeRun(result: good)]
+            )
+        )
     }
 
     func testPrivateDNSAddressIsExposed() {
@@ -435,6 +575,26 @@ final class NetPulseTests: XCTestCase {
         )
     }
 
+    private func makeResult(
+        target: ProbeTarget,
+        address: String,
+        samples: [ProbeSample]
+    ) -> ProbeResult {
+        ProbeResult(
+            target: target,
+            resolvedAddresses: [address],
+            samples: samples
+        )
+    }
+
+    private func makeRun(result: ProbeResult) -> NetworkRun {
+        NetworkRun(
+            startedAt: Date(),
+            finishedAt: Date(),
+            results: [result]
+        )
+    }
+
     private func successfulSample(totalMs: Double) -> ProbeSample {
         ProbeSample(
             ok: true,
@@ -447,6 +607,21 @@ final class NetPulseTests: XCTestCase {
             isProxyConnection: false,
             errorPhase: nil,
             errorDetail: nil
+        )
+    }
+
+    private func failedSample() -> ProbeSample {
+        ProbeSample(
+            ok: false,
+            checkedAt: Date(),
+            statusCode: nil,
+            contentType: nil,
+            bytesRead: 0,
+            timings: ProbeTimings(totalMs: 350),
+            protocolName: nil,
+            isProxyConnection: false,
+            errorPhase: "tls",
+            errorDetail: "connection reset"
         )
     }
 }
