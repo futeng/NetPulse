@@ -562,6 +562,31 @@ final class NetPulseTests: XCTestCase {
         XCTAssertTrue(result.usesFakeIPAddress)
     }
 
+    func testSingleLatencyOutlierDoesNotDegradeTypicalStatus() {
+        let target = ProbeTarget(
+            service: "Test",
+            name: "Occasional spike",
+            category: .api,
+            urlString: "https://example.com",
+            acceptAnyStatusBelow500: true
+        )
+        let result = ProbeResult(
+            target: target,
+            resolvedAddresses: [],
+            samples: [
+                successfulSample(totalMs: 420),
+                successfulSample(totalMs: 460),
+                successfulSample(totalMs: 1_900)
+            ]
+        )
+
+        XCTAssertEqual(result.medianMs, 460)
+        XCTAssertEqual(result.p95Ms, 1_900)
+        XCTAssertEqual(result.performanceRating, .good)
+        XCTAssertEqual(result.status, .healthy)
+        XCTAssertTrue(result.hasLatencyOutlier)
+    }
+
     func testReplacingSingleTargetResultPreservesRunAndOtherTargets() {
         let first = makeEmptyResult(name: "First")
         let second = makeEmptyResult(name: "Second")
