@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   package:
@@ -22,6 +24,14 @@ jobs:
           export NETPULSE_VERSION="${NETPULSE_VERSION#v}"
           ./scripts/build_release_dmg.sh universal
 
+      - name: Verify release artifacts
+        run: ./scripts/verify_release_dmg.sh
+
+      - name: Attest DMG build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: "${{ github.workspace }}/dist/NetPulse-*.dmg"
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -31,4 +41,5 @@ jobs:
             dist/NetPulse-*.dmg.sha256 \
             --verify-tag \
             --generate-notes \
+            --notes "This Universal DMG is ad-hoc signed and is not Apple-notarized. Verify its SHA-256 checksum and GitHub artifact attestation before first launch. Installation and verification: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/docs/DISTRIBUTION.md" \
             --title "NetPulse ${GITHUB_REF_NAME#v}"

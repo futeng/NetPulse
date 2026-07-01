@@ -12,6 +12,10 @@ NetPulse-<version>-universal.dmg.sha256
 ```
 
 The Universal executable contains both `arm64` and `x86_64` slices.
+GitHub Actions also creates a signed Artifact Attestation for each DMG. The
+attestation binds the DMG digest to the public repository, workflow and commit
+that produced it. It supplements the ad-hoc signature; it does not replace
+Apple notarization or make Gatekeeper trust the publisher.
 
 The stable application identifier is:
 
@@ -52,6 +56,17 @@ Only download releases from the official repository and compare the DMG checksum
 shasum -a 256 -c NetPulse-<version>-universal.dmg.sha256
 ```
 
+Verify the GitHub build provenance with GitHub CLI:
+
+```bash
+gh attestation verify NetPulse-<version>-universal.dmg \
+  --repo futeng/NetPulse
+```
+
+The checksum detects a changed or incomplete download. The attestation proves
+that the matching DMG was produced by this repository's GitHub Actions
+workflow. Both checks should pass before first launch.
+
 ## Build Commands
 
 ```bash
@@ -69,6 +84,9 @@ shasum -a 256 -c NetPulse-<version>-universal.dmg.sha256
 
 # Universal DMG and SHA-256 file
 ./scripts/build_release_dmg.sh universal
+
+# Verify checksum, DMG structure, app signature, Bundle ID and architectures
+./scripts/verify_release_dmg.sh
 ```
 
 An Intel Mac running macOS 13 or later can build and run NetPulse directly. Apple Silicon Macs can also cross-compile the Intel slice with the installed macOS SDK.
@@ -82,7 +100,29 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-The workflow builds both architectures, combines them with `lipo`, creates the DMG and uploads it to GitHub Releases.
+The workflow:
+
+1. Builds both architectures and combines them with `lipo`.
+2. Creates the ad-hoc signed Universal DMG and SHA-256 file.
+3. Mounts the final DMG and verifies its signature, Bundle ID and architectures.
+4. Creates signed GitHub build provenance for the DMG.
+5. Publishes the DMG and checksum to GitHub Releases.
+
+The regular CI workflow also builds and verifies a temporary Universal DMG on
+every push and pull request. This catches packaging failures before a release
+tag is created.
+
+The workflow requires these GitHub token permissions:
+
+```yaml
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+```
+
+Artifact Attestations are available for this public repository without a paid
+GitHub plan. Verification requires network access to GitHub.
 
 ## Future Developer ID Distribution
 

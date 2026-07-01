@@ -17,5 +17,10 @@ jobs:
       - name: Run tests
         run: swift test --package-path NetPulse
 
-      - name: Build Universal app
-        run: ./scripts/build_netpulse.sh universal
+      - name: Build Universal DMG
+        env:
+          NETPULSE_VERSION: 0.0.0-ci
+        run: ./scripts/build_release_dmg.sh universal
+
+      - name: Verify Universal DMG
+        run: ./scripts/verify_release_dmg.sh
