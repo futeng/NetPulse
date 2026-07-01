@@ -35,6 +35,12 @@ struct ProbeResultRow: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 PerformanceLabel(rating: result.performanceRating)
+                                if result.hasLatencyOutlier {
+                                    Label("偶发抖动", systemImage: "waveform.path.ecg")
+                                        .font(.caption2.weight(.medium))
+                                        .foregroundStyle(.orange)
+                                        .help("典型响应正常，但本轮出现了一次明显较慢的采样")
+                                }
                                 if routeInsight?.isCurrentPathProblematic == true {
                                     Label("CDN 路径异常", systemImage: "point.3.connected.trianglepath.dotted")
                                         .font(.caption2.weight(.medium))

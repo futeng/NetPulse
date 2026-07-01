@@ -22,7 +22,8 @@ private final class MetricsDelegate: NSObject, URLSessionTaskDelegate, @unchecke
 }
 
 enum ProbeEngine {
-    private static let maximumConcurrentTargets = 6
+    private static let maximumConcurrentTargets = 3
+    private static let targetStartStaggerNanoseconds: UInt64 = 150_000_000
 
     static func run(
         targets: [ProbeTarget],
@@ -44,9 +45,14 @@ enum ProbeEngine {
                 of: ProbeResult.self,
                 returning: [ProbeResult].self
             ) { group in
-                for target in batch {
+                for (offset, target) in batch.enumerated() {
                     group.addTask {
-                        await probe(
+                        if offset > 0 {
+                            try? await Task.sleep(
+                                nanoseconds: UInt64(offset) * targetStartStaggerNanoseconds
+                            )
+                        }
+                        return await probe(
                             target: target,
                             sampleCount: sampleCount,
                             timeoutSeconds: timeoutSeconds

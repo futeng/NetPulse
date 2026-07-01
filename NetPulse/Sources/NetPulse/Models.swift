@@ -443,7 +443,7 @@ struct ProbeResult: Identifiable, Codable, Hashable {
         if samples.isEmpty { return .idle }
         if successCount == 0 { return .unavailable }
         if failureCount > 0 { return .unstable }
-        return latencyPerformanceRating(for: p95Ms)
+        return latencyPerformanceRating(for: medianMs)
     }
     var status: HealthStatus {
         switch performanceRating {
@@ -456,6 +456,14 @@ struct ProbeResult: Identifiable, Codable, Hashable {
     var medianMs: Double? { percentile(samples.filter(\.ok).map(\.timings.totalMs), 0.5) }
     var p95Ms: Double? { percentile(samples.filter(\.ok).map(\.timings.totalMs), 0.95) }
     var worstMs: Double? { samples.map(\.timings.totalMs).max() }
+    var hasLatencyOutlier: Bool {
+        guard failureCount == 0,
+              let medianMs,
+              let p95Ms else {
+            return false
+        }
+        return medianMs < 800 && p95Ms >= 800
+    }
     var latestError: String? {
         samples.first(where: { !$0.ok }).flatMap {
             [$0.errorPhase, $0.errorDetail].compactMap { $0 }.joined(separator: ": ")
@@ -568,7 +576,9 @@ private func networkScore(for result: ProbeResult) -> Double {
     guard result.successCount > 0 else { return 0 }
 
     let reliability = Double(result.successCount) / Double(result.samples.count)
-    let base = latencyScore(for: result.p95Ms)
+    let typicalScore = latencyScore(for: result.medianMs)
+    let tailScore = latencyScore(for: result.p95Ms)
+    let base = typicalScore * 0.8 + tailScore * 0.2
     let failurePenalty = Double(result.failureCount) / Double(result.samples.count) * 18
     return max(0, min(100, base * reliability - failurePenalty))
 }
