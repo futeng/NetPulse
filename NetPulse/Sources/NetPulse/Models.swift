@@ -70,7 +70,7 @@ enum MenuBarNetworkPace {
 }
 
 enum MenuBarRunner: String, CaseIterable, Identifiable {
-    case tropicalFish
+    case sailfish
     case clownFish
     case arowana
     case bettaFish
@@ -85,8 +85,8 @@ enum MenuBarRunner: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .tropicalFish:
-            return "热带鱼"
+        case .sailfish:
+            return "旗鱼"
         case .clownFish:
             return "小丑鱼"
         case .arowana:
@@ -113,12 +113,12 @@ extension MenuBarRunner: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let rawValue = try container.decode(String.self)
-        if rawValue == "otter" || rawValue == "dolphin" {
-            self = .tropicalFish
+        if ["otter", "dolphin", "tropicalFish"].contains(rawValue) {
+            self = .sailfish
         } else if let runner = MenuBarRunner(rawValue: rawValue) {
             self = runner
         } else {
-            self = .tropicalFish
+            self = .sailfish
         }
     }
 
@@ -618,7 +618,7 @@ struct AppConfiguration: Codable, Equatable {
         launchAtLogin: Bool,
         exitIPCheckEnabled: Bool = false,
         ipinfoLiteToken: String = "",
-        menuBarRunner: MenuBarRunner = .tropicalFish
+        menuBarRunner: MenuBarRunner = .sailfish
     ) {
         self.targets = targets
         self.scheduleEnabled = scheduleEnabled
@@ -674,7 +674,7 @@ struct AppConfiguration: Codable, Equatable {
         menuBarRunner = try container.decodeIfPresent(
             MenuBarRunner.self,
             forKey: .menuBarRunner
-        ) ?? .tropicalFish
+        ) ?? .sailfish
     }
 
     static let `default` = AppConfiguration(
@@ -689,7 +689,7 @@ struct AppConfiguration: Codable, Equatable {
         launchAtLogin: false,
         exitIPCheckEnabled: false,
         ipinfoLiteToken: "",
-        menuBarRunner: .tropicalFish
+        menuBarRunner: .sailfish
     )
 
     func addingMissingBuiltInTargets() -> AppConfiguration {

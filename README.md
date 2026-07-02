@@ -1,96 +1,104 @@
 # NetPulse
 
-NetPulse 是一款原生 macOS 菜单栏网络检测工具，面向差旅、VPN、多代理和复杂办公网络场景。它通过真实 HTTP 请求检测文字、图片、视频 CDN 与 API，帮助定位“网站能打开，但图片或视频加载失败”这类普通连通性测试难以发现的问题。
-
 <p align="center">
-  <img src="docs/images/netpulse-mascot.png" width="220" alt="NetPulse 网络脉冲吉祥物">
+  <strong>English</strong> · <a href="README.zh-CN.md">简体中文</a>
 </p>
 
-![NetPulse 主面板](docs/images/netpulse-dashboard.png)
+NetPulse is a native macOS menu bar network monitor for travel, VPNs, proxy chains, and complex office networks. It performs real HTTP requests against text, image, video CDN, and API endpoints to expose failures that simple connectivity checks miss, such as a website loading while its images or videos remain unavailable.
 
-## 极低资源占用
+<p align="center">
+  <img src="docs/images/netpulse-mascot.png" width="220" alt="NetPulse sailfish logo">
+</p>
 
-NetPulse 使用原生 SwiftUI 和按需检测机制。空闲时只保留菜单栏状态与休眠中的调度任务，不运行持续轮询服务；到达设定周期后才分批完成少量网络采样，保存本地结果后立即重新休眠。视频检测只读取小范围数据，不会下载完整视频，因此日常后台运行对 CPU、网络流量和电量的影响极小。
+![NetPulse dashboard](docs/images/netpulse-dashboard.png)
 
-## 菜单栏水族箱
+<p align="center">
+  <img src="docs/images/netpulse-menubar.png" width="360" alt="NetPulse menu bar status">
+</p>
 
-NetPulse 使用热带鱼等水族箱形象表示实时网络体验。主界面和菜单栏使用同一套形象，网络越顺畅，游动越从容。
+## Lightweight by Design
 
-菜单栏使用专门为小尺寸设计的动态单色图标：
+NetPulse uses native SwiftUI and on-demand probes. While idle, it keeps only its menu bar state and a sleeping scheduler. At each configured interval it runs a small batch of samples, saves the results locally, and returns to sleep. Video checks read only a small byte range rather than downloading the full video, keeping CPU, bandwidth, and battery usage low.
 
-- 正在检测：以最快速度游动。
-- 网络健康：平稳、轻快地游动。
-- 响应偏慢：降低游动速度。
-- 网络不可用：保持轻微动作，不制造焦虑感。
+## Sailfish in the Menu Bar
 
-## 功能
+The default brand character is a sailfish: fast, distinctive, and readable even at menu bar size. Its long bill, tall sail-like dorsal fin, and crescent tail create a clear silhouette. Swimming speed maps directly to the current network experience, while the dashboard and menu bar share the same visual language. Other aquarium characters remain available in settings.
 
-- 并发检测 Google、X、ChatGPT/OpenAI、Grok/xAI 及自定义服务。
-- 分别检测文字、图片、视频 CDN 和 API。
-- 展示成功率、探测失败率、中位数、P95 和最慢耗时。
-- 使用中位数判断典型体验，并单独标记 P95 尾部延迟造成的偶发抖动。
-- 展开查看 DNS、TCP、TLS、首包和请求总耗时。
-- 根据历史结果比较同一 CDN 域名的不同解析 IP，识别特定地址或代理节点路径异常。
-- 为 CDN 路径异常提供 Shadowrocket 节点切换、临时 Host 映射和 X 域名规则建议。
-- 识别 Shadowrocket TUN/Fake-IP 的 `198.18.0.0/15` 虚拟地址。
-- 支持服务分组、目标启停、自定义目标和目标置顶。
-- 支持在结果详情中仅检测当前目标，不触发其他服务。
-- 支持 1、5、15、30 分钟快捷周期及 1–1440 分钟自定义周期。
-- 支持 macOS 异常通知、恢复通知和登录启动。
-- 本地保留最近 50 次检测历史。
+- During a check, the sailfish swims at its fastest pace.
+- On a healthy network, it cruises smoothly.
+- On a slower network, its movement becomes more relaxed.
+- When services are unavailable, it keeps a subtle motion without creating unnecessary anxiety.
 
-## 系统要求
+## Features
 
-- macOS 13 或更高版本
-- Xcode Command Line Tools
-- Swift 5.10 或更高版本
+- Concurrent checks for Google, X, ChatGPT/OpenAI, Grok/xAI, and custom services.
+- Separate probes for text, images, video CDNs, and APIs.
+- Success rate, sample failure rate, median, P95, and worst latency.
+- Median-based typical experience with visible P95 tail-latency warnings.
+- DNS, TCP, TLS, time-to-first-byte, and total request timing.
+- Historical comparison of resolved CDN addresses to identify bad proxy or CDN paths.
+- Shadowrocket suggestions for node switching, temporary host mapping, and X domain rules.
+- Recognition of Shadowrocket TUN/Fake-IP addresses in `198.18.0.0/15`.
+- Service grouping, target enablement, custom targets, editing, and pinning.
+- One-target checks without triggering a complete run.
+- Presets for 1, 5, 15, and 30 minutes plus a custom 1–1440 minute interval.
+- macOS failure and recovery notifications with launch-at-login support.
+- Local storage for the latest 50 runs.
+- Import and export of shareable JSON configuration packages.
+- Optional public exit IP, country, and ASN display through IPinfo Lite.
 
-## 安装
+## Requirements
+
+- macOS 13 or later
+- Xcode Command Line Tools for source builds
+- Swift 5.10 or later for source builds
+
+## Installation
 
 ### GitHub Release
 
-每个版本标签会通过 GitHub Actions 自动生成：
+Each version tag is built automatically by GitHub Actions:
 
 ```text
-NetPulse-<版本>-universal.dmg
-NetPulse-<版本>-universal.dmg.sha256
+NetPulse-<version>-universal.dmg
+NetPulse-<version>-universal.dmg.sha256
 ```
 
-Universal DMG 同时支持 Apple Silicon 与 Intel Mac。每个 DMG 都附带 SHA-256 校验文件，并由 GitHub Actions 生成 Artifact Attestation，用于验证安装包确实来自本仓库对应的发布工作流和提交。
+The Universal DMG supports both Apple Silicon and Intel Macs. Every DMG includes a SHA-256 checksum and a GitHub Artifact Attestation that links the artifact to this repository, release workflow, and source commit.
 
-下载后可以执行：
+After downloading:
 
 ```bash
-shasum -a 256 -c NetPulse-<版本>-universal.dmg.sha256
-gh attestation verify NetPulse-<版本>-universal.dmg \
+shasum -a 256 -c NetPulse-<version>-universal.dmg.sha256
+gh attestation verify NetPulse-<version>-universal.dmg \
   --repo futeng/NetPulse
 ```
 
-两项验证通过后，双击打开 DMG，再把 `NetPulse.app` 拖入“应用程序”。
+When both checks pass, open the DMG and drag `NetPulse.app` into Applications.
 
-当前项目没有付费 Apple Developer 证书，因此 Release 使用 **ad-hoc 临时签名，未经过 Apple 公证**。首次启动时：
+NetPulse currently has no paid Apple Developer certificate. Release builds are therefore **ad-hoc signed and not Apple-notarized**. On first launch:
 
-1. 在 Finder 的“应用程序”中按住 Control 点击 NetPulse。
-2. 选择“打开”，再次确认。
-3. 如果仍被阻止，请打开“系统设置 → 隐私与安全”，找到 NetPulse 后点击“仍要打开”。
+1. Control-click NetPulse in Finder's Applications folder.
+2. Select **Open**, then confirm **Open** again.
+3. If macOS still blocks it, open **System Settings → Privacy & Security** and select **Open Anyway** for NetPulse.
 
-这一步只需要执行一次。具体限制和原因见 [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md)。
+This is normally required only once. See [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md) for the security model and limitations.
 
-### 从源码安装
+### Build from Source
 
-构建当前 Mac 对应架构并安装到 `~/Applications`：
+Build for the current Mac architecture and install into `~/Applications`:
 
 ```bash
 ./scripts/install_netpulse_app.sh
 ```
 
-仅构建当前架构：
+Build without installing:
 
 ```bash
 ./scripts/build_netpulse.sh
 ```
 
-构建指定架构或 Universal 应用：
+Build a specific architecture or a Universal app:
 
 ```bash
 ./scripts/build_netpulse.sh arm64
@@ -98,79 +106,87 @@ gh attestation verify NetPulse-<版本>-universal.dmg \
 ./scripts/build_netpulse.sh universal
 ```
 
-生成本地 Universal DMG：
+Generate and verify a local Universal DMG:
 
 ```bash
 ./scripts/build_release_dmg.sh universal
 ./scripts/verify_release_dmg.sh
 ```
 
-构建产物位于 `dist/NetPulse.app`。安装后可从菜单栏打开，也可运行：
+Build output is written to `dist/NetPulse.app`. After installation, open the dashboard from the menu bar or run:
 
 ```bash
 open netpulse://dashboard
 ```
 
-首次启动后，请在 macOS“系统设置 → 通知 → NetPulse”中允许通知。
+Allow notifications under **System Settings → Notifications → NetPulse** after first launch.
 
-从早期测试版本升级时，由于 Bundle ID 已统一为 `com.ftpai.futeng.NetPulse`，macOS 会把它视为新的应用身份。原有检测目标和历史仍会保留，但通知权限与“登录时启动”需要重新确认一次。
+Early test builds used a different Bundle ID. After upgrading to `com.ftpai.futeng.NetPulse`, macOS may ask for notification and launch-at-login permission again. Existing targets and history remain in the same Application Support directory.
 
-## 使用
+## Usage
 
-主面板直接展示当前检测结果：
+The dashboard shows the latest check directly:
 
-- 顶部标签按“服务分组”筛选，例如 Google、X、OpenAI。
-- 点击目标行右侧图钉可置顶；置顶目标会优先显示并使用浅色背景区分。
-- 点击目标行或展开按钮查看分阶段耗时与路由信息。
-- 右上角周期菜单可选择快捷周期、自定义周期或关闭定时检测。
-- 列表工具栏最右侧可打开检测历史和配置。
-- 配置页顶部“更多”菜单支持导出 JSON 配置包，也支持导入并合并目标或导入并替换配置。
-- 运行设置支持配置 IPinfo Lite Token，在主面板展示当前系统出口 IP、国家和 ASN。
+- Filter by service group, such as Google, X, OpenAI, or Grok.
+- Pin important targets to move them to the top with a distinct background.
+- Expand a row to inspect timing stages and route information.
+- Run only that target from its expanded detail view.
+- Choose a preset, custom interval, or disable scheduled checks from the top-right menu.
+- Open history and configuration from the right side of the list toolbar.
+- Export or import a JSON configuration package from the configuration menu.
+- Configure an IPinfo Lite token under runtime settings to show the current system exit IP, country, and ASN.
 
-添加检测目标时：
+Target fields map to the list as follows:
 
-| 字段 | 列表中的作用 |
+| Field | Purpose |
 |---|---|
-| 服务分组 | 生成顶部筛选标签，并标识目标所属服务 |
-| 目标名称 | 显示为检测列表主标题 |
-| 内容类型（图标） | 选择文字、图片、视频、API 或自定义图标 |
-| 域名或 URL | 实际发起网络检测的地址 |
+| Service group | Creates the top filter and identifies the owning service |
+| Target name | Main title displayed in the target list |
+| Content type | Selects the text, image, video, API, or custom icon |
+| Domain or URL | Actual endpoint requested by the probe |
 
-已有目标可在“配置 → 检测目标”中点击目标信息编辑。每行仅保留置顶和更多操作；启用、停用与删除位于更多菜单。编辑时可以修改服务分组、名称、内容类型、地址、启用状态和置顶状态；内置目标同样开放编辑并保留其专业检测判定规则。恢复操作位于顶部的更多菜单。
+Built-in and custom targets can both be edited. Each target row keeps only pin and overflow controls; enable, disable, edit, and delete actions live in the overflow menu. Restoring built-in targets is intentionally placed in the less prominent configuration menu.
 
-默认策略：
+Default behavior:
 
-- 每 5 分钟检测一次。
-- 每个目标默认采样 3 次。采样按目标顺序执行，整轮最多同时检测 3 个目标并错开启动时间，避免检测本身制造突发连接压力。
-- 单次请求超时 5 秒。
-- 同类异常 30 分钟内不重复通知。
+- Run every 5 minutes.
+- Sample each target three times.
+- Process up to three targets concurrently with staggered starts to avoid creating a proxy or TLS burst.
+- Use a 5-second timeout per request.
+- Suppress duplicate notifications of the same type for 30 minutes.
 
-Grok 内置目标使用不消耗额度的可达性探测：Web 首页检查 `grok.com`，Imagine 视频生成检查 xAI 视频生成入口的可达状态，API 检查 xAI 模型列表入口的未授权响应。
+The built-in Grok checks avoid paid usage: the Web target checks `grok.com`, the Imagine target checks the xAI video-generation entry point, and the API target checks the unauthenticated model-list response.
 
-配置包会导出检测目标和可共享运行设置，不包含检测历史，也不会导出或覆盖本机的登录启动状态。
+Exported configuration contains targets and shareable runtime settings. It excludes history, launch-at-login state, and the local IPinfo token.
 
-出口 IP 当前只支持 IPinfo Lite。Lite 免费版需要 API Token；Token 只保存在本机 `config.json`，不会写入导出的配置包。
+IPinfo Lite is currently the only exit-IP provider. Its free plan requires an API token, which is stored only in the local `config.json`.
 
-### 性能分级
+### Performance Levels
 
-| 等级 | P95 总耗时 |
+| Level | Median total latency |
 |---|---:|
-| 优秀 | `< 300ms` |
-| 良好 | `300–799ms` |
-| 偏慢 | `800–1499ms` |
-| 很慢 | `>= 1500ms` |
+| Excellent | `< 300ms` |
+| Good | `300–799ms` |
+| Slow | `800–1499ms` |
+| Very slow | `>= 1500ms` |
 
-任何采样失败或超时会优先标记为“不稳定”；全部采样失败则标记为“不可用”。
+Any failed or timed-out sample takes priority and marks the target as unstable. If every sample fails, the target is unavailable.
 
-## 开发
+## Development
 
-运行测试：
+Run tests:
 
 ```bash
 swift test --package-path NetPulse
 ```
 
-项目结构：
+Regenerate the application icon from the brand source:
+
+```bash
+./scripts/generate_app_icon.sh
+```
+
+Project structure:
 
 ```text
 NetPulse/
@@ -182,40 +198,42 @@ docs/ARCHITECTURE.md
 docs/DISTRIBUTION.md
 scripts/build_netpulse.sh
 scripts/build_release_dmg.sh
+scripts/generate_app_icon.sh
 scripts/install_netpulse_app.sh
+scripts/verify_release_dmg.sh
 ```
 
-架构和数据流说明见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for architecture and data flow.
 
-### Intel Mac
+### Intel Macs
 
-可以直接在 macOS 13 或更高版本的 Intel MacBook 上克隆项目并运行：
+An Intel Mac running macOS 13 or later can clone and run the project directly:
 
 ```bash
 ./scripts/install_netpulse_app.sh
 ```
 
-脚本会通过 `uname -m` 自动选择 `x86_64`。在 Apple Silicon Mac 上也可以交叉编译 Intel 版本，项目已验证能够生成 Mach-O `x86_64` 可执行文件。
+The script selects `x86_64` through `uname -m`. Apple Silicon Macs can also cross-compile the Intel slice with an installed macOS SDK.
 
-### 创建 Release
+### Create a Release
 
-推送符合 `v*` 格式的标签即可触发 Universal DMG 发布：
+Push a `v*` tag to trigger the Universal DMG release:
 
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-发布工作流会依次检查 SHA-256、DMG 完整性、ad-hoc 签名、Bundle ID 和 `arm64`/`x86_64` 双架构，然后为最终 DMG 生成 GitHub Artifact Attestation。任何检查失败都不会创建 Release。
+The release workflow verifies SHA-256, DMG integrity, the ad-hoc signature, Bundle ID, and both `arm64` and `x86_64` slices before generating a GitHub Artifact Attestation. A failed check prevents Release creation.
 
-## 数据与隐私
+## Data and Privacy
 
-- 配置和历史保存在 `~/Library/Application Support/NetPulse/`，不会写入代码仓库。
-- `198.18.x.x` 和 `198.19.x.x` 是代理软件使用的保留虚拟地址，不是本机公网 IP。
-- 检测会对目标发起少量真实请求；视频目标仅读取小范围数据，不下载完整视频。
-- 项目不收集遥测数据，不包含第三方消息推送或云端账号凭据。
-- Bundle ID：`com.ftpai.futeng.NetPulse`。
+- Configuration and history stay under `~/Library/Application Support/NetPulse/`.
+- `198.18.x.x` and `198.19.x.x` are reserved virtual addresses used by proxy software, not the Mac's public IP.
+- Probes make a small number of real requests. Video targets read only a small byte range.
+- NetPulse collects no telemetry and contains no third-party messaging credentials.
+- Bundle ID: `com.ftpai.futeng.NetPulse`.
 
-## 开源许可
+## License
 
-NetPulse 使用 [MIT License](LICENSE)。
+NetPulse is available under the [MIT License](LICENSE).

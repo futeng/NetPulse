@@ -188,7 +188,7 @@ enum MenuBarIconRenderer {
         let alpha = pace.templateAlpha * blink
 
         switch runner {
-        case .tropicalFish, .clownFish, .arowana, .bettaFish, .goldfish,
+        case .sailfish, .clownFish, .arowana, .bettaFish, .goldfish,
              .guppy, .neonTetra, .angelfish, .pufferFish:
             drawSignalWake(
                 pace: pace,
@@ -334,6 +334,25 @@ enum MenuBarIconRenderer {
     private static func drawFishBody(runner: MenuBarRunner) {
         let body = NSBezierPath()
         switch runner {
+        case .sailfish:
+            body.move(to: NSPoint(x: 15.2, y: 0))
+            body.line(to: NSPoint(x: 8.0, y: 1.1))
+            body.curve(
+                to: NSPoint(x: -9.0, y: 2.6),
+                controlPoint1: NSPoint(x: 3.0, y: 3.0),
+                controlPoint2: NSPoint(x: -4.5, y: 3.4)
+            )
+            body.curve(
+                to: NSPoint(x: -9.0, y: -2.6),
+                controlPoint1: NSPoint(x: -11.0, y: 1.2),
+                controlPoint2: NSPoint(x: -11.0, y: -1.2)
+            )
+            body.curve(
+                to: NSPoint(x: 8.0, y: -1.1),
+                controlPoint1: NSPoint(x: -4.5, y: -3.4),
+                controlPoint2: NSPoint(x: 3.0, y: -3.0)
+            )
+            body.close()
         case .arowana:
             body.move(to: NSPoint(x: 12.6, y: 0.4))
             body.curve(
@@ -446,6 +465,9 @@ enum MenuBarIconRenderer {
         NSColor.black.withAlphaComponent(alpha * 0.92).setFill()
         let tailOffset = tailBeat * 1.5
         switch runner {
+        case .sailfish:
+            drawForkTail(rootX: -9.0, tipX: -15.2, amplitude: 4.4, tailOffset: tailOffset)
+            return
         case .arowana:
             drawForkTail(rootX: -11.2, tipX: -15.8, amplitude: 2.8, tailOffset: tailOffset)
             return
@@ -559,6 +581,18 @@ enum MenuBarIconRenderer {
 
         let topFin = NSBezierPath()
         switch runner {
+        case .sailfish:
+            topFin.move(to: NSPoint(x: -4.8, y: 2.3))
+            topFin.curve(
+                to: NSPoint(x: -1.6, y: 9.3),
+                controlPoint1: NSPoint(x: -4.2, y: 6.2),
+                controlPoint2: NSPoint(x: -3.0, y: 8.8)
+            )
+            topFin.curve(
+                to: NSPoint(x: 4.0, y: 2.2),
+                controlPoint1: NSPoint(x: 1.0, y: 7.2),
+                controlPoint2: NSPoint(x: 3.3, y: 4.0)
+            )
         case .arowana:
             topFin.move(to: NSPoint(x: -4.8, y: 2.4))
             topFin.line(to: NSPoint(x: 5.0, y: 4.4))
@@ -613,6 +647,8 @@ enum MenuBarIconRenderer {
         detail.lineCapStyle = .round
 
         switch runner {
+        case .sailfish:
+            break
         case .arowana:
             detail.lineWidth = 0.9
             detail.move(to: NSPoint(x: -6.5, y: 0.7))

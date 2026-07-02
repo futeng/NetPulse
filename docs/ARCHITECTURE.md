@@ -9,7 +9,7 @@ NetPulse uses a small SwiftUI application layer around a concurrent network prob
 | Component | Responsibility |
 |---|---|
 | `NetPulseApp.swift` | Menu bar status item and single-instance dashboard scenes |
-| `NetworkPulseMenuBarIcon.swift` | Compact monochrome network health icon for the menu bar |
+| `StatusBarController.swift` | Animated monochrome sailfish, menu bar commands and status score |
 | `AppModel.swift` | Application state, scheduling, target management and notifications |
 | `ProbeEngine.swift` | Concurrent DNS/TCP/TLS/HTTP probes and timing collection |
 | `Models.swift` | Targets, samples, runs, health and performance classification |
@@ -25,7 +25,7 @@ NetPulse uses a small SwiftUI application layer around a concurrent network prob
 2. `ProbeEngine` runs enabled targets concurrently.
 3. Each target runs the configured number of samples.
 4. Samples record DNS, TCP, TLS, first-byte and total duration where available.
-5. Results are classified by availability first, then P95 latency.
+5. Results are classified by availability first, then median latency; P95 remains visible as tail-latency evidence.
 6. The run is stored locally and passed to the notification manager.
 
 ## Scheduling

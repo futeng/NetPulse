@@ -11,6 +11,7 @@ MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 PLIST_SOURCE="$PACKAGE_DIR/Resources/Info.plist"
 ICON_SOURCE="$PACKAGE_DIR/Resources/AppIcon.icns"
+MASCOT_SOURCE="$PACKAGE_DIR/Resources/Brand/NetPulseMascot.png"
 VERSION="${NETPULSE_VERSION:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST_SOURCE")}"
 BUILD_NUMBER="${NETPULSE_BUILD_NUMBER:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST_SOURCE")}"
 
@@ -44,6 +45,7 @@ esac
 
 cp "$PLIST_SOURCE" "$CONTENTS_DIR/Info.plist"
 cp "$ICON_SOURCE" "$RESOURCES_DIR/AppIcon.icns"
+cp "$MASCOT_SOURCE" "$RESOURCES_DIR/NetPulseMascot.png"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$CONTENTS_DIR/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$CONTENTS_DIR/Info.plist"
 chmod +x "$MACOS_DIR/NetPulse"

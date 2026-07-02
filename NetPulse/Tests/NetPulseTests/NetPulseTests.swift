@@ -49,11 +49,11 @@ final class NetPulseTests: XCTestCase {
 
         XCTAssertFalse(configuration.exitIPCheckEnabled)
         XCTAssertEqual(configuration.ipinfoLiteToken, "")
-        XCTAssertEqual(configuration.menuBarRunner, .tropicalFish)
+        XCTAssertEqual(configuration.menuBarRunner, .sailfish)
     }
 
-    func testLegacyMenuBarRunnerMigratesToTropicalFish() throws {
-        for legacyValue in ["otter", "dolphin"] {
+    func testLegacyMenuBarRunnerMigratesToSailfish() throws {
+        for legacyValue in ["otter", "dolphin", "tropicalFish"] {
             let json = "\"\(legacyValue)\""
 
             let runner = try JSONDecoder().decode(
@@ -61,13 +61,13 @@ final class NetPulseTests: XCTestCase {
                 from: Data(json.utf8)
             )
 
-            XCTAssertEqual(runner, .tropicalFish)
+            XCTAssertEqual(runner, .sailfish)
         }
     }
 
     func testMenuBarRunnersRenderVisibleAnimatedFrames() throws {
-        let first = MenuBarIconRenderer.image(for: .good, runner: .tropicalFish, phase: 0.1)
-        let second = MenuBarIconRenderer.image(for: .good, runner: .tropicalFish, phase: 0.6)
+        let first = MenuBarIconRenderer.image(for: .good, runner: .sailfish, phase: 0.1)
+        let second = MenuBarIconRenderer.image(for: .good, runner: .sailfish, phase: 0.6)
         let firstPixels = try rgbaPixels(from: first)
         let secondPixels = try rgbaPixels(from: second)
 
@@ -80,13 +80,13 @@ final class NetPulseTests: XCTestCase {
             XCTAssertGreaterThan(nonTransparentPixelCount(try rgbaPixels(from: image)), 40)
         }
 
-        let tropical = try rgbaPixels(
-            from: MenuBarIconRenderer.image(for: .good, runner: .tropicalFish, phase: 0.35)
+        let sailfish = try rgbaPixels(
+            from: MenuBarIconRenderer.image(for: .good, runner: .sailfish, phase: 0.35)
         )
         let clown = try rgbaPixels(
             from: MenuBarIconRenderer.image(for: .good, runner: .clownFish, phase: 0.35)
         )
-        XCTAssertNotEqual(tropical, clown)
+        XCTAssertNotEqual(sailfish, clown)
     }
 
     func testPinnedTargetsHaveHigherWeightInMenuBarScore() {
