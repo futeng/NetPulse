@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 struct EmptyStateView: View {
@@ -22,25 +21,89 @@ struct EmptyStateView: View {
 }
 
 struct BrandLogoMark: View {
-    private var logoImage: NSImage {
-        guard let url = Bundle.main.url(
-            forResource: "NetPulseMascot",
-            withExtension: "png"
-        ),
-        let image = NSImage(contentsOf: url) else {
-            return NSApplication.shared.applicationIconImage
-        }
-        return image
-    }
-
     var body: some View {
-        Image(nsImage: logoImage)
-            .resizable()
-            .interpolation(.high)
-            .scaledToFit()
-            .frame(width: 48, height: 48)
-            .clipShape(Circle())
-            .accessibilityLabel("NetPulse 旗鱼 Logo")
+        ZStack {
+            SailfishBrandShape()
+                .fill(Color(red: 0.02, green: 0.36, blue: 0.48))
+
+            Circle()
+                .fill(Color(nsColor: .windowBackgroundColor))
+                .frame(width: 3.5, height: 3.5)
+                .offset(x: 18, y: -1)
+        }
+        .frame(width: 72, height: 48)
+        .fixedSize()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("NetPulse 旗鱼 Logo")
+    }
+}
+
+private struct SailfishBrandShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let sx = rect.width / 72
+        let sy = rect.height / 48
+
+        func point(_ x: Double, _ y: Double) -> CGPoint {
+            CGPoint(
+                x: rect.midX + CGFloat(x) * sx,
+                y: rect.midY - CGFloat(y) * sy
+            )
+        }
+
+        path.move(to: point(35, 0))
+        path.addLine(to: point(16, 2.2))
+        path.addCurve(
+            to: point(-17, 5.5),
+            control1: point(7, 7),
+            control2: point(-7, 7.5)
+        )
+        path.addCurve(
+            to: point(-19, -5.5),
+            control1: point(-21, 2.5),
+            control2: point(-21, -2.5)
+        )
+        path.addCurve(
+            to: point(16, -2.2),
+            control1: point(-7, -7.5),
+            control2: point(7, -7)
+        )
+        path.closeSubpath()
+
+        path.move(to: point(-10, 5))
+        path.addCurve(
+            to: point(-5, 23),
+            control1: point(-9, 14),
+            control2: point(-7, 20)
+        )
+        path.addCurve(
+            to: point(9, 4.3),
+            control1: point(1, 18),
+            control2: point(7, 10)
+        )
+        path.closeSubpath()
+
+        path.move(to: point(-17, 1.4))
+        path.addLine(to: point(-34, 12))
+        path.addLine(to: point(-26, 0))
+        path.closeSubpath()
+
+        path.move(to: point(-17, -1.4))
+        path.addLine(to: point(-34, -12))
+        path.addLine(to: point(-26, 0))
+        path.closeSubpath()
+
+        path.move(to: point(-1, -4.8))
+        path.addLine(to: point(7, -14))
+        path.addLine(to: point(6, -3.5))
+        path.closeSubpath()
+
+        path.move(to: point(-8, -5))
+        path.addLine(to: point(-2, -12))
+        path.addLine(to: point(0, -4.5))
+        path.closeSubpath()
+
+        return path
     }
 }
 
