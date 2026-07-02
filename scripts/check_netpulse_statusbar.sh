@@ -8,54 +8,62 @@ if [[ ! -d "$APP_PATH" ]]; then
     exit 1
 fi
 
-result="$(/usr/bin/osascript <<APPLESCRIPT
-on statusItemCount()
-  tell application "System Events" to tell process "ControlCenter"
-    return count of menu bar items of menu bar 1
-  end tell
-end statusItemCount
-
-on waitForCountBelow(limitCount)
-  repeat with attempt from 1 to 15
-    delay 0.2
-    set currentCount to statusItemCount()
-    if currentCount < limitCount then return currentCount
-  end repeat
-  return statusItemCount()
-end waitForCountBelow
-
-on waitForCountAbove(limitCount)
-  repeat with attempt from 1 to 20
-    delay 0.25
-    set currentCount to statusItemCount()
-    if currentCount > limitCount then return currentCount
-  end repeat
-  return statusItemCount()
-end waitForCountAbove
-
-set beforeCount to statusItemCount()
-try
-  tell application "NetPulse" to quit
-end try
-set afterQuitCount to waitForCountBelow(beforeCount)
-
-tell application "Finder" to open POSIX file "$APP_PATH"
-set afterOpenCount to waitForCountAbove(afterQuitCount)
-
-if afterQuitCount >= beforeCount then
-  error "NetPulse quit did not remove a status item. before=" & beforeCount & ", afterQuit=" & afterQuitCount
-end if
-
-if afterOpenCount <= afterQuitCount then
-  error "NetPulse launch did not add a status item. afterQuit=" & afterQuitCount & ", afterOpen=" & afterOpenCount
-end if
-
-return "before=" & beforeCount & ", afterQuit=" & afterQuitCount & ", afterOpen=" & afterOpenCount
-APPLESCRIPT
-)" || {
-    echo "NetPulse status bar self-check failed." >&2
-    echo "$result" >&2
-    exit 1
+status_item_count() {
+    /usr/bin/osascript -e \
+        'tell application "System Events" to tell process "ControlCenter" to return count of menu bar items of menu bar 1'
 }
 
-echo "NetPulse status bar self-check passed: $result"
+wait_for_process_exit() {
+    for _ in {1..20}; do
+        /usr/bin/pgrep -x NetPulse >/dev/null || return 0
+        /bin/sleep 0.2
+    done
+    return 1
+}
+
+wait_for_process_start() {
+    for _ in {1..20}; do
+        /usr/bin/pgrep -x NetPulse >/dev/null && return 0
+        /bin/sleep 0.25
+    done
+    return 1
+}
+
+before_count="$(status_item_count)"
+
+while IFS= read -r pid; do
+    [[ -n "$pid" ]] && /bin/kill "$pid"
+done < <(/usr/bin/pgrep -x NetPulse || true)
+
+if ! wait_for_process_exit; then
+    echo "NetPulse status bar self-check failed: process did not exit." >&2
+    exit 1
+fi
+
+after_quit_count="$before_count"
+for _ in {1..15}; do
+    after_quit_count="$(status_item_count)"
+    (( after_quit_count < before_count )) && break
+    /bin/sleep 0.2
+done
+
+/usr/bin/open -n "$APP_PATH"
+if ! wait_for_process_start; then
+    echo "NetPulse status bar self-check failed: process did not start." >&2
+    exit 1
+fi
+
+after_open_count="$after_quit_count"
+for _ in {1..20}; do
+    after_open_count="$(status_item_count)"
+    (( after_open_count > after_quit_count )) && break
+    /bin/sleep 0.25
+done
+
+if (( after_open_count <= after_quit_count )); then
+    echo "NetPulse status bar self-check failed: no status item appeared." >&2
+    echo "before=$before_count, afterQuit=$after_quit_count, afterOpen=$after_open_count" >&2
+    exit 1
+fi
+
+echo "NetPulse status bar self-check passed: before=$before_count, afterQuit=$after_quit_count, afterOpen=$after_open_count"

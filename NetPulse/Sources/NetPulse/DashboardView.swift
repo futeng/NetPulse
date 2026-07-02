@@ -28,11 +28,7 @@ struct DashboardView: View {
 
     private var header: some View {
         HStack(spacing: 16) {
-            StatusMark(
-                status: model.overallStatus,
-                isRunning: model.isAnyProbeRunning,
-                runner: model.configuration.menuBarRunner
-            )
+            BrandLogoMark()
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(model.isAnyProbeRunning ? "正在进行真实访问检测" : overallTitle)

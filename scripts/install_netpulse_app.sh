@@ -9,11 +9,19 @@ INSTALLED_APP="$INSTALL_DIR/NetPulse.app"
 "$ROOT_DIR/scripts/build_netpulse.sh"
 
 if /usr/bin/pgrep -x NetPulse >/dev/null; then
-  /usr/bin/osascript -e 'tell application "NetPulse" to quit' >/dev/null 2>&1 || true
+  while IFS= read -r pid; do
+    [[ -n "$pid" ]] && /bin/kill "$pid"
+  done < <(/usr/bin/pgrep -x NetPulse)
+
   for _ in {1..20}; do
     /usr/bin/pgrep -x NetPulse >/dev/null || break
     /bin/sleep 0.2
   done
+
+  if /usr/bin/pgrep -x NetPulse >/dev/null; then
+    echo "Unable to stop the running NetPulse process." >&2
+    exit 1
+  fi
 fi
 
 mkdir -p "$INSTALL_DIR"
